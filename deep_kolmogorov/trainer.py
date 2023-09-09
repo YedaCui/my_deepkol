@@ -395,10 +395,11 @@ HYPERCONFIGS = {
         "n_test_batches": 150,
     },
     "avg_bs": {
-        "seed": tune.grid_search([0,1]),
+        "seed": tune.grid_search([0]),
         "checkpoint": True,
         "pde": "BlackScholes",
-        "net": "MultilevelNet",
+        #"net": "MultilevelNet",
+        "net": "DeepONet",
         "norm_layer": "batchnorm",
         "opt": "adamw",
         "bs": 65536,
@@ -414,6 +415,9 @@ HYPERCONFIGS = {
         "n_iterations": 15,
         "n_train_batches": 2000,
         "n_test_batches": 150,
+        "size_t_s_u": [1,1,2],
+        "branch_layer": [2,15,15,15],
+        "trunk_layer": [2,15,15,15]
     },
     "avg_basket": {
         "seed": tune.grid_search([0, 1, 2, 3]),

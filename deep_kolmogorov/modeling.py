@@ -2,6 +2,7 @@ import math
 import time
 import torch
 from torch import nn
+from typing import List, Tuple
 
 EPSILON = 1e-08
 NORMLAYERS = {
@@ -57,6 +58,56 @@ class BaseNet(torch.nn.Module):
         for subclass in cls.__subclasses__():
             yield from subclass.get_subclasses()
             yield subclass
+
+
+class DenseNet(nn.Module):
+    """
+    The feed forward neural network
+    """
+
+    def __init__(self, num_layers: List[int]):
+        super(DenseNet, self).__init__()
+        self.bn_layers = nn.ModuleList([
+            nn.BatchNorm1d(num_layers[i],
+                eps=1e-6,
+                momentum=0.99)
+            for i in range(len(num_layers)-1)])
+            
+        self.dense_layers = nn.ModuleList([nn.Linear(num_layers[i-1], num_layers[i])
+                             for i in range(1, len(num_layers))])
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """structure: bn -> (dense -> bn -> relu) * len(num_hiddens) -> dense """
+        for i in range(len(self.dense_layers)):
+            x = self.bn_layers[i](x)
+            x = self.dense_layers[i](x)
+            x = torch.relu(x)
+        return x
+
+
+class DeepONet(BaseNet):
+    """
+    The deepOnet, The arguments are hidden layers of brunch and trunk net
+    brunch_layer: The list of hidden sizes of trunk nets;
+    trunk_layer: The list of hidden sizes of trunk nets
+    """
+
+    def __init__(self, dim_in, config):
+        super().__init__(dim_in, config)
+        self.branch = DenseNet(self.config["branch_layer"])
+        self.trunk = DenseNet(self.config["trunk_layer"])
+        self.size_t, self.size_s, self.size_u = self.config["size_t_s_u"]
+
+    def forward(self, tensor: torch.Tensor) -> torch.Tensor:
+        """
+        The input of state can be either 3-dim or 4-dim but once fixed a problem the
+        dimension of the input tensor is fixed.
+        """
+        time_tensor, state_tensor, u_tensor = tensor[:, 0:self.size_t], tensor[:, self.size_t:self.size_s+self.size_t], tensor[:, self.size_s+self.size_t:]
+        br = self.branch(u_tensor)
+        tr = self.trunk(torch.cat([time_tensor, state_tensor], -1))
+        value = torch.sum(br * tr, dim=-1, keepdim=True)
+        return value
 
 
 class LevelNet(nn.Module):
