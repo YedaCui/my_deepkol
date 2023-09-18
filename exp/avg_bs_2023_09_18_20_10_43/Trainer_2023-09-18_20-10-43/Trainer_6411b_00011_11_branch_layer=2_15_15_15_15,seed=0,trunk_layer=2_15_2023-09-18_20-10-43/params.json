@@ -1,0 +1,39 @@
+{
+  "branch_layer": [
+    2,
+    15,
+    15,
+    15,
+    15
+  ],
+  "bs": 131072,
+  "checkpoint": true,
+  "factor": 5,
+  "gpus": 1,
+  "levels": 4,
+  "lr": 0.01,
+  "lr_decay": 0.25,
+  "lr_decay_patience": 2,
+  "min_lr": 1e-08,
+  "mode": "avg_bs",
+  "n_iterations": 15,
+  "n_test_batches": 150,
+  "n_train_batches": 2000,
+  "net": "DeepONet",
+  "norm_layer": "batchnorm",
+  "opt": "adamw",
+  "pde": "BlackScholes",
+  "seed": 0,
+  "size_t_s_u": [
+    1,
+    1,
+    2
+  ],
+  "trunk_layer": [
+    2,
+    15
+  ],
+  "unfreeze": "all",
+  "unfreeze_patience": 1,
+  "weight_decay": 0.01
+}
