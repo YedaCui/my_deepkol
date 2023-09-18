@@ -72,8 +72,8 @@ class Trainer(tune.Trainable):
         self.train_metr = Metrics()
         self.test_metr = Metrics()
         # data
-        self.train_loader = self.pde.dataloader(config["bs"], config["n_train_batches"])
-        self.test_loader = self.pde.dataloader(config["bs"], config["n_test_batches"])
+        self.train_loader = self.pde.dataloader(config["bs"], config["n_train_batches"], 'train')
+        self.test_loader = self.pde.dataloader(config["bs"], config["n_test_batches"], 'test')
         # stats
         first_scores = self._test_loop()
         self.initial_stats = {
@@ -402,7 +402,7 @@ HYPERCONFIGS = {
         "net": "DeepONet",
         "norm_layer": "batchnorm",
         "opt": "adamw",
-        "bs": 65536,
+        "bs": 65536*2,
         "lr": 0.01,
         "min_lr": 1e-8,
         "lr_decay": 0.25,
@@ -416,8 +416,8 @@ HYPERCONFIGS = {
         "n_train_batches": 2000,
         "n_test_batches": 150,
         "size_t_s_u": [1,1,2],
-        "branch_layer": [2,15,15,15],
-        "trunk_layer": [2,15,15,15]
+        "branch_layer": tune.grid_search([[2,15,15,15], [2,15,15], [2,15], [2,15,15,15,15]]),
+        "trunk_layer": tune.grid_search([[2,15,15,15], [2,15,15], [2,15], [2,15,15,15,15]])
     },
     "avg_basket": {
         "seed": tune.grid_search([0, 1, 2, 3]),
@@ -481,7 +481,7 @@ def main(config):
     if "num_samples" in config:
         num_samples = config.pop("num_samples")
     else:
-        num_samples = 1
+        num_samples = 3
     if "stopper" in config:
         stopper = config.pop("stopper")
     else:

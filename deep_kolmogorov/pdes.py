@@ -54,24 +54,51 @@ class Hypercube:
         return f'hypercube {self.__interval}^({"x".join(map(str,self.__dims))})'
 
 
+# class Data(Dataset):
+#     """
+#     Uniformly distributed input data as a PyTorch (infinite) dataset.
+#     """
+
+#     def __init__(self, hypercubes, batch_size, n_batches):
+#         self.batch_size = batch_size
+#         self.n_batches = n_batches
+#         self.hypercubes = hypercubes
+
+#     def __len__(self):
+#         return self.n_batches
+
+#     def __getitem__(self, idx):
+#         return {
+#             key: cube.sample(self.batch_size) for key, cube in self.hypercubes.items()
+#         }
+
 class Data(Dataset):
     """
     Uniformly distributed input data as a PyTorch (infinite) dataset.
     """
 
-    def __init__(self, hypercubes, batch_size, n_batches):
+    def __init__(self, hypercubes, batch_size, n_batches, sde):
         self.batch_size = batch_size
         self.n_batches = n_batches
         self.hypercubes = hypercubes
+        self.sde = sde
 
     def __len__(self):
         return self.n_batches
 
     def __getitem__(self, idx):
-        return {
+        if self.sde is None:
+            return {
             key: cube.sample(self.batch_size) for key, cube in self.hypercubes.items()
         }
-
+        raw_batch = {
+            key: cube.sample(self.batch_size) for key, cube in self.hypercubes.items()
+        }
+        batch = raw_batch
+        batch['t'] = torch.round(raw_batch['t'] * 250)/250
+        raw_batch['t'] = self.hypercubes['t'].interval[1] - batch['t']
+        batch['x'] = self.sde(raw_batch)
+        return batch
 
 class Pde(ABC):
     """
@@ -103,10 +130,17 @@ class Pde(ABC):
     def dim_flat(self):
         return sum([cube.dim_flat for cube in self.__hypercubes.values()])
 
-    def dataloader(self, batch_size, n_batches):
-        return DataLoader(
-            Data(self.__hypercubes, batch_size, n_batches), batch_size=None
-        )
+    def dataloader(self, batch_size, n_batches, data_type):
+        if data_type == 'train': 
+            return DataLoader(
+                # Data(self.__hypercubes, batch_size, n_batches), batch_size=None
+                Data(self.__hypercubes, batch_size, n_batches, self.sde0), batch_size=None
+            )
+        else:
+            return DataLoader(
+                # Data(self.__hypercubes, batch_size, n_batches), batch_size=None
+                Data(self.__hypercubes, batch_size, n_batches, None), batch_size=None
+            )
 
     def normalize_and_flatten(self, batch):
         batch = [
@@ -281,6 +315,20 @@ class BlackScholes(Pde):
             -0.5 * batch["t"] * batch["sigma"] ** 2 + batch["sigma"] * dw
         )
         return torch.nn.ReLU()(batch["K"] - sde)
+
+    @staticmethod
+    def sde0(batch):
+        """
+        Outputs batched realizations of the SDE.
+        The 't' is selected at grids and 'x' represents the stock price at time 0.
+        """
+        dw = torch.sqrt(batch["t"]) * torch.randn(
+            batch["x"].shape, dtype=batch["x"].dtype, device=batch["x"].device
+        )
+        sde = batch["x"] * torch.exp(
+            -0.5 * batch["t"] * batch["sigma"] ** 2 + batch["sigma"] * dw
+        )
+        return sde
 
     @staticmethod
     def solution(batch):
