@@ -87,6 +87,7 @@ class Data(Dataset):
         return self.n_batches
 
     def __getitem__(self, idx):
+        from copy import deepcopy
         if self.sde is None:
             return {
             key: cube.sample(self.batch_size) for key, cube in self.hypercubes.items()
@@ -94,8 +95,7 @@ class Data(Dataset):
         raw_batch = {
             key: cube.sample(self.batch_size) for key, cube in self.hypercubes.items()
         }
-        batch = raw_batch
-        batch['t'] = torch.round(raw_batch['t'] * 250)/250
+        batch = deepcopy(raw_batch)
         raw_batch['t'] = self.hypercubes['t'].interval[1] - batch['t']
         batch['x'] = self.sde(raw_batch)
         return batch
