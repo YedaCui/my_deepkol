@@ -1,0 +1,19 @@
+Failure # 1 (occurred at 2023-10-02_00-47-36)
+The actor died because of an error raised in its creation task, [36mray::Trainer.__init__()[39m (pid=142537, ip=137.189.58.22, actor_id=06e624fd27bc393f4c251a9101000000, repr=<deep_kolmogorov.trainer.Trainer object at 0x7fe5bc6cb100>)
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/ray/tune/trainable/trainable.py", line 169, in __init__
+    self.setup(copy.deepcopy(self.config))
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/trainer.py", line 78, in setup
+    first_scores = self._test_loop()
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/trainer.py", line 127, in _test_loop
+    for batch in self.test_loader:
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/torch/utils/data/dataloader.py", line 652, in __next__
+    data = self._next_data()
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/torch/utils/data/dataloader.py", line 692, in _next_data
+    data = self._dataset_fetcher.fetch(index)  # may raise StopIteration
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/torch/utils/data/_utils/fetch.py", line 51, in fetch
+    data = self.dataset[possibly_batched_index]
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/pdes.py", line 78, in __getitem__
+    batch["x"] = self.get_X(batch)
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/pdes.py", line 375, in get_X
+    batch["x"].shape, dtype=batch["x"].dtype, device=batch["x"].device
+KeyError: 'x'

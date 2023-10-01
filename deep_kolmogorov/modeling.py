@@ -95,8 +95,8 @@ class DeepONet(BaseNet):
     def __init__(self, dim_in, config):
         super().__init__(dim_in, config)
         self.size_t, self.size_s, self.size_u = self.config["size_t_s_u"]
-        self.branch = DenseNet([2] + [self.config["num_width"]] * self.config["num_depth"])
-        self.trunk = DenseNet([2] + [self.config["num_width"]] * self.config["num_depth"])
+        self.branch = DenseNet([self.size_u] + [self.config["num_width"]] * self.config["num_depth"])
+        self.trunk = DenseNet([self.size_t + self.size_s] + [self.config["num_width"]] * self.config["num_depth"])
 
     def forward(self, tensor: torch.Tensor) -> torch.Tensor:
         """
@@ -210,14 +210,11 @@ class KolmogorovNet(torch.nn.Module):
     def forward(self, batch, train=True):
         with torch.no_grad():
             if train:
-                # print('Shape of x is ', batch['x'].shape)
-                # print('x is ', batch['x'])
                 y = self.pde.sde(batch)
             else:
-                y = self.pde.solution(batch)
+                y = torch.exp(- batch["r"] * batch["t"]) * self.pde.solution(batch)
             tensor = self.pde.normalize_and_flatten(batch)
-            # print('Shape of tensor is ', tensor.shape)
-        y_pred = self.net.forward(tensor)
+        y_pred = torch.exp(- batch["r"] * batch["t"]) * self.net.forward(tensor)
         return {"pde": y, "net": y_pred}
 
 

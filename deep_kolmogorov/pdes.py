@@ -4,6 +4,7 @@ from operator import mul
 from functools import reduce
 import torch
 from torch.utils.data import Dataset, DataLoader
+from copy import deepcopy
 
 
 class Hypercube:
@@ -54,50 +55,29 @@ class Hypercube:
         return f'hypercube {self.__interval}^({"x".join(map(str,self.__dims))})'
 
 
-# class Data(Dataset):
-#     """
-#     Uniformly distributed input data as a PyTorch (infinite) dataset.
-#     """
-
-#     def __init__(self, hypercubes, batch_size, n_batches):
-#         self.batch_size = batch_size
-#         self.n_batches = n_batches
-#         self.hypercubes = hypercubes
-
-#     def __len__(self):
-#         return self.n_batches
-
-#     def __getitem__(self, idx):
-#         return {
-#             key: cube.sample(self.batch_size) for key, cube in self.hypercubes.items()
-#         }
-
 class Data(Dataset):
     """
     Uniformly distributed input data as a PyTorch (infinite) dataset.
     """
 
-    def __init__(self, hypercubes, batch_size, n_batches, sde):
+    def __init__(self, hypercubes, batch_size, n_batches, get_X, get_K):
         self.batch_size = batch_size
         self.n_batches = n_batches
         self.hypercubes = hypercubes
-        self.sde = sde
+        self.get_X = get_X
+        self.get_K = get_K
 
     def __len__(self):
         return self.n_batches
 
     def __getitem__(self, idx):
-        from copy import deepcopy
-        if self.sde is None:
-            return {
+        batch = {
             key: cube.sample(self.batch_size) for key, cube in self.hypercubes.items()
         }
-        raw_batch = {
-            key: cube.sample(self.batch_size) for key, cube in self.hypercubes.items()
-        }
-        batch = deepcopy(raw_batch)
-        raw_batch['t'] = self.hypercubes['t'].interval[1] - batch['t']
-        batch['x'] = self.sde(raw_batch)
+        if self.get_X is not None:
+            batch["x"] = self.get_X(batch)
+        if self.get_K is not None:
+            batch["K"] = self.get_K(batch)
         return batch
 
 class Pde(ABC):
@@ -120,8 +100,8 @@ class Pde(ABC):
             and all(isinstance(cube, Hypercube) for cube in value.values())
         ):
             raise TypeError(f"{value} must be a dictionary consisting of hypercubes")
-        if not all(param in value for param in self.params):
-            raise ValueError(f"{value} must have keys {self.params}.")
+        # if not all(param in value for param in self.params):
+        #     raise ValueError(f"{value} must have keys {self.params}.")
         if not self._check_dims(value):
             raise ValueError("hypercube dimensions are not matching.")
         self.__hypercubes = value
@@ -131,21 +111,28 @@ class Pde(ABC):
         return sum([cube.dim_flat for cube in self.__hypercubes.values()])
 
     def dataloader(self, batch_size, n_batches, data_type):
-        if data_type == 'train': 
-            return DataLoader(
-                # Data(self.__hypercubes, batch_size, n_batches), batch_size=None
-                Data(self.__hypercubes, batch_size, n_batches, self.sde0), batch_size=None
+        return DataLoader(
+                Data(self.__hypercubes, batch_size, n_batches, self.get_X, self.get_K), batch_size=None
             )
-        else:
-            return DataLoader(
-                # Data(self.__hypercubes, batch_size, n_batches), batch_size=None
-                Data(self.__hypercubes, batch_size, n_batches, None), batch_size=None
-            )
+        # if data_type == 'train': 
+        #     return DataLoader(
+        #         Data(self.__hypercubes, batch_size, n_batches, self.get_X, None), batch_size=None
+        #     )
+        # else:
+        #     return DataLoader(
+        #         Data(self.__hypercubes, batch_size, n_batches, None, None), batch_size=None
+        #     )
+
+    def naf(self, batch, param):
+        raise NotImplementedError
 
     def normalize_and_flatten(self, batch):
+        # batch = [
+        #     (batch[param] - self.__hypercubes[param].mean) / self.hypercubes[param].std
+        #     for param in self.params
+        # ]
         batch = [
-            (batch[param] - self.__hypercubes[param].mean) / self.hypercubes[param].std
-            for param in self.params
+            self.naf(batch, param) for param in self.params
         ]
         return torch.cat([tensor.flatten(start_dim=1) for tensor in batch], dim=1)
 
@@ -317,7 +304,7 @@ class BlackScholes(Pde):
         return torch.nn.ReLU()(batch["K"] - sde)
 
     @staticmethod
-    def sde0(batch):
+    def get_X(batch):
         """
         Outputs batched realizations of the SDE.
         The 't' is selected at grids and 'x' represents the stock price at time 0.
@@ -345,16 +332,135 @@ class BlackScholes(Pde):
         )
         return batch["K"] * n_dist(_d + sigma_sqrtt) - batch["x"] * n_dist(_d)
 
+
+HYPERCUBES["black_scholes_r"] = {
+    "t": Hypercube(interval=[0.0, 1.0]),
+    "s": Hypercube(interval=[9.0, 10.0]),
+    "r": Hypercube(interval=[0.005, 0.8]),
+    # "r": Hypercube(interval=[0, 1e-8]),
+    "sigma": Hypercube(interval=[0.1, 0.6]),
+    "kappa": Hypercube(interval=[0.8, 1.2]),
+}
+
+
+class BSr(Pde):
+    params = ("t", "x", "r", "sigma", "K")
+
+    def __init__(self, hypercubes=HYPERCUBES["black_scholes_r"]):
+        super().__init__(hypercubes)
+
     @staticmethod
-    def vega_solution(batch):
+    def _check_dims(hypercubes):
+        return all(cube.dims == (1,) for cube in hypercubes.values())
+
+    def sde(self, batch):
         """
-        Outputs the exact vega.
+        Outputs batched realizations of the SDE.
         """
-        sqrtt = torch.sqrt(batch["t"])
+        t = self.hypercubes["t"].interval[1] - batch["t"]
+        dw = torch.sqrt(t) * torch.randn(
+            batch["x"].shape, dtype=batch["x"].dtype, device=batch["x"].device
+        )
+        sde = batch["x"] * torch.exp(
+             batch["r"] * t - 0.5 * t * batch["sigma"] ** 2 + batch["sigma"] * dw
+        )
+        return torch.exp(-batch["r"] * self.hypercubes['t'].interval[1]) * torch.nn.ReLU()(batch["K"] - sde)
+
+    @staticmethod
+    def get_X(batch):
+        """
+        get the X from S_0
+        """
+        dw = torch.sqrt(batch["t"]) * torch.randn(
+            batch["s"].shape, dtype=batch["s"].dtype, device=batch["s"].device
+        )
+        sde = batch["s"] * torch.exp(
+            batch["r"] * batch["t"] - 0.5 * batch["t"] * batch["sigma"] ** 2 + batch["sigma"] * dw
+        )
+        return sde
+
+    @staticmethod
+    def get_K(batch):
+        """
+        Get the K from kappa and S_0
+        """
+        return batch["kappa"] * batch["s"]
+
+    def solution(self, batch):
+        """
+        Outputs the exact solution.
+        """
+        t = self.hypercubes["t"].interval[1] - batch["t"]
+        sigma_sqrtt = batch["sigma"] * torch.sqrt(t)
         _d = (
-            torch.log(batch["x"] / batch["K"]) + 0.5 * batch["t"] * batch["sigma"] ** 2
-        ) / (batch["sigma"] * sqrtt)
-        return batch["x"] * sqrtt * n_density(_d)
+            -(
+                torch.log(batch["x"] / batch["K"])
+                + batch["r"] * t +  0.5 * t * batch["sigma"] ** 2
+            )
+            / sigma_sqrtt
+        )
+        return batch["K"] * torch.exp(-batch["r"]*t) * n_dist(_d + sigma_sqrtt) - batch["x"] * n_dist(_d)
+    
+    def naf(self, batch, param):
+        if param == "x":
+            return (batch[param] - self.hypercubes["s"].mean) /  self.hypercubes["s"].std
+        elif param == 'K':
+            return (batch[param] - self.hypercubes["s"].mean * self.hypercubes["kappa"].mean) / (self.hypercubes["kappa"].mean ** 2 * self.hypercubes["s"].std ** 2 + self.hypercubes["s"].mean ** 2 * self.hypercubes["kappa"].std ** 2) ** 0.5
+        else:
+            return (batch[param] - self.hypercubes[param].mean) / self.hypercubes[param].std
+
+
+# class BSr(Pde):
+#     params = ("t", "x", "r", "sigma", "kappa")
+
+#     def __init__(self, hypercubes=HYPERCUBES["black_scholes_r"]):
+#         super().__init__(hypercubes)
+
+#     @staticmethod
+#     def _check_dims(hypercubes):
+#         return all(cube.dims == (1,) for cube in hypercubes.values())
+
+#     def sde(self, batch):
+#         """
+#         Outputs batched realizations of the SDE.
+#         """
+#         t = self.hypercubes["t"].interval[1] - batch["t"]
+#         dw = torch.sqrt(t) * torch.randn(
+#             batch["x"].shape, dtype=batch["x"].dtype, device=batch["x"].device
+#         )
+#         sde = batch["x"] * torch.exp(
+#              batch["r"] * t - 0.5 * t * batch["sigma"] ** 2 + batch["sigma"] * dw
+#         )
+#         return torch.exp(-batch["r"] * self.hypercubes['t'].interval[1]) * torch.nn.ReLU()(batch["kappa"] * batch["s"] - sde)
+
+#     @staticmethod
+#     def sde0(batch):
+#         """
+#         Outputs batched realizations of the SDE.
+#         The 't' is selected at grids and 'x' represents the stock price at time 0.
+#         """
+#         dw = torch.sqrt(batch["t"]) * torch.randn(
+#             batch["s"].shape, dtype=batch["s"].dtype, device=batch["s"].device
+#         )
+#         sde = batch["s"] * torch.exp(
+#             batch["r"] * batch["t"] - 0.5 * batch["t"] * batch["sigma"] ** 2 + batch["sigma"] * dw
+#         )
+#         return sde
+
+#     def solution(self, batch):
+#         """
+#         Outputs the exact solution.
+#         """
+#         t = self.hypercubes["t"].interval[1] - batch["t"]
+#         sigma_sqrtt = batch["sigma"] * torch.sqrt(t)
+#         _d = (
+#             -(
+#                 torch.log(batch["x"] / batch["kappa"] / batch["s"])
+#                 + batch["r"] * t +  0.5 * t * batch["sigma"] ** 2
+#             )
+#             / sigma_sqrtt
+#         )
+#         return batch["kappa"] * batch["s"] * torch.exp(-batch["r"]*t) * n_dist(_d + sigma_sqrtt) - batch["x"] * n_dist(_d)
 
 
 HYPERCUBES.update(

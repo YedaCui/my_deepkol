@@ -1,0 +1,13 @@
+Failure # 1 (occurred at 2023-10-01_18-40-15)
+The actor died because of an error raised in its creation task, [36mray::Trainer.__init__()[39m (pid=26345, ip=137.189.58.22, actor_id=f5ca780a6b4d9194720fd56d01000000, repr=<deep_kolmogorov.trainer.Trainer object at 0x7fe8543270d0>)
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/ray/tune/trainable/trainable.py", line 169, in __init__
+    self.setup(copy.deepcopy(self.config))
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/trainer.py", line 59, in setup
+    self.pde = PDES[config["pde"]](**pde_kwargs)
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/pdes.py", line 365, in __init__
+    super().__init__(hypercubes)
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/pdes.py", line 92, in __init__
+    self.hypercubes = hypercubes
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/pdes.py", line 106, in hypercubes
+    raise ValueError(f"{value} must have keys {self.params}.")
+ValueError: {'t': hypercube [0.0, 1.0]^(1), 's': hypercube [9.0, 10.0]^(1), 'r': hypercube [0.005, 0.8]^(1), 'sigma': hypercube [0.1, 0.6]^(1), 'kappa': hypercube [0.8, 1.2]^(1)} must have keys ('t', 'x', 'r', 'sigma', 'kappa').

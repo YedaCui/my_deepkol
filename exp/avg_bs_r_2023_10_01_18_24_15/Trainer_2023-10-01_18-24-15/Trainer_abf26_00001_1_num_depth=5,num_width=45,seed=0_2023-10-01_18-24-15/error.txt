@@ -1,0 +1,7 @@
+Failure # 1 (occurred at 2023-10-01_18-24-18)
+The actor died because of an error raised in its creation task, [36mray::Trainer.__init__()[39m (pid=21764, ip=137.189.58.22, actor_id=2b9b4e5c8636b60567cfc80601000000, repr=<deep_kolmogorov.trainer.Trainer object at 0x7fe5beb53190>)
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/ray/tune/trainable/trainable.py", line 169, in __init__
+    self.setup(copy.deepcopy(self.config))
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/trainer.py", line 59, in setup
+    self.pde = PDES[config["pde"]](**pde_kwargs)
+KeyError: 'BlackScholesR'

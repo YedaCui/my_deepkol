@@ -1,0 +1,19 @@
+Failure # 1 (occurred at 2023-10-01_18-55-28)
+[36mray::Trainer.train()[39m (pid=32122, ip=137.189.58.22, actor_id=b4bd0e0da12904c9a0aafcad01000000, repr=<deep_kolmogorov.trainer.Trainer object at 0x7f4cddc6f010>)
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/ray/tune/trainable/trainable.py", line 375, in train
+    raise skipped from exception_cause(skipped)
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/ray/tune/trainable/trainable.py", line 372, in train
+    result = self.step()
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/trainer.py", line 96, in step
+    train_scores = self._train_loop()
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/trainer.py", line 115, in _train_loop
+    output = self.model.forward(batch)
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/torch/nn/parallel/data_parallel.py", line 166, in forward
+    return self.module(*inputs[0], **kwargs[0])
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1130, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/modeling.py", line 213, in forward
+    y = self.pde.sde(batch)
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/pdes.py", line 382, in sde
+    return torch.exp(-batch["r"] * self.__hypercubes['t'].interval[1]) * torch.nn.ReLU()(batch["kappa"] * batch["s"] - sde)
+AttributeError: 'BSr' object has no attribute '_BSr__hypercubes'. Did you mean: '_Pde__hypercubes'?
