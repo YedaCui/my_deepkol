@@ -416,8 +416,8 @@ HYPERCONFIGS = {
         "n_train_batches": 2000,
         "n_test_batches": 150,
         "size_t_s_u": [1,1,2],
-        "branch_layer": tune.grid_search([[2,15,15,15], [2,15,15], [2,15], [2,15,15,15,15]]),
-        "trunk_layer": tune.grid_search([[2,15,15,15], [2,15,15], [2,15], [2,15,15,15,15]])
+        "num_depth" : tune.grid_search([4,5,6]),
+        "num_width" : tune.grid_search([45,55])
     },
     "avg_basket": {
         "seed": tune.grid_search([0, 1, 2, 3]),
@@ -481,7 +481,7 @@ def main(config):
     if "num_samples" in config:
         num_samples = config.pop("num_samples")
     else:
-        num_samples = 3
+        num_samples = 1
     if "stopper" in config:
         stopper = config.pop("stopper")
     else:

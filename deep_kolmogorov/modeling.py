@@ -94,9 +94,9 @@ class DeepONet(BaseNet):
 
     def __init__(self, dim_in, config):
         super().__init__(dim_in, config)
-        self.branch = DenseNet(self.config["branch_layer"])
-        self.trunk = DenseNet(self.config["trunk_layer"])
         self.size_t, self.size_s, self.size_u = self.config["size_t_s_u"]
+        self.branch = DenseNet([2] + [self.config["num_width"]] * self.config["num_depth"])
+        self.trunk = DenseNet([2] + [self.config["num_width"]] * self.config["num_depth"])
 
     def forward(self, tensor: torch.Tensor) -> torch.Tensor:
         """

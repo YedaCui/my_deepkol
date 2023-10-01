@@ -303,16 +303,16 @@ class BlackScholes(Pde):
     def _check_dims(hypercubes):
         return all(cube.dims == (1,) for cube in hypercubes.values())
 
-    @staticmethod
-    def sde(batch):
+    def sde(self, batch):
         """
         Outputs batched realizations of the SDE.
         """
-        dw = torch.sqrt(batch["t"]) * torch.randn(
+        t = self.hypercubes["t"].interval[1] - batch["t"]
+        dw = torch.sqrt(t) * torch.randn(
             batch["x"].shape, dtype=batch["x"].dtype, device=batch["x"].device
         )
         sde = batch["x"] * torch.exp(
-            -0.5 * batch["t"] * batch["sigma"] ** 2 + batch["sigma"] * dw
+            -0.5 * t * batch["sigma"] ** 2 + batch["sigma"] * dw
         )
         return torch.nn.ReLU()(batch["K"] - sde)
 
@@ -330,16 +330,16 @@ class BlackScholes(Pde):
         )
         return sde
 
-    @staticmethod
-    def solution(batch):
+    def solution(self, batch):
         """
         Outputs the exact solution.
         """
-        sigma_sqrtt = batch["sigma"] * torch.sqrt(batch["t"])
+        t = self.hypercubes["t"].interval[1] - batch["t"]
+        sigma_sqrtt = batch["sigma"] * torch.sqrt(t)
         _d = (
             -(
                 torch.log(batch["x"] / batch["K"])
-                + 0.5 * batch["t"] * batch["sigma"] ** 2
+                + 0.5 * t * batch["sigma"] ** 2
             )
             / sigma_sqrtt
         )
