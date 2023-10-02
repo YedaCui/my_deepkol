@@ -1,0 +1,27 @@
+Failure # 1 (occurred at 2023-10-02_10-40-08)
+The actor died because of an error raised in its creation task, [36mray::Trainer.__init__()[39m (pid=260069, ip=137.189.58.22, actor_id=0d5faf24abbf49fb2261821701000000, repr=<deep_kolmogorov.trainer.Trainer object at 0x7ef435ed7670>)
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/ray/tune/trainable/trainable.py", line 169, in __init__
+    self.setup(copy.deepcopy(self.config))
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/trainer.py", line 78, in setup
+    first_scores = self._test_loop()
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/trainer.py", line 127, in _test_loop
+    for batch in self.test_loader:
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/torch/utils/data/dataloader.py", line 652, in __next__
+    data = self._next_data()
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/torch/utils/data/dataloader.py", line 692, in _next_data
+    data = self._dataset_fetcher.fetch(index)  # may raise StopIteration
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/torch/utils/data/_utils/fetch.py", line 51, in fetch
+    data = self.dataset[possibly_batched_index]
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/pdes.py", line 74, in __getitem__
+    batch = {
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/pdes.py", line 75, in <dictcomp>
+    key: cube.sample(self.batch_size) for key, cube in self.hypercubes.items()
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/pdes.py", line 52, in sample
+    return torch.FloatTensor(batch_size, *self.__dims).uniform_(*self.__interval)
+TypeError: new() received an invalid combination of arguments - got (float, int), but expected one of:
+ * (*, torch.device device)
+      didn't match because some of the arguments have invalid types: (!float!, !int!)
+ * (torch.Storage storage)
+ * (Tensor other)
+ * (tuple of ints size, *, torch.device device)
+ * (object data, *, torch.device device)

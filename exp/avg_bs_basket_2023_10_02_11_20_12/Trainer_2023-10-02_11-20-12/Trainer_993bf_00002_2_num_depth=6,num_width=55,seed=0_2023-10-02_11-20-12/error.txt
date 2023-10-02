@@ -1,0 +1,19 @@
+Failure # 1 (occurred at 2023-10-02_11-41-41)
+[36mray::Trainer.train()[39m (pid=282511, ip=137.189.58.22, actor_id=a042236789cd983169e97e3601000000, repr=<deep_kolmogorov.trainer.Trainer object at 0x7f829556f5e0>)
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/ray/tune/trainable/trainable.py", line 375, in train
+    raise skipped from exception_cause(skipped)
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/ray/tune/trainable/trainable.py", line 372, in train
+    result = self.step()
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/trainer.py", line 96, in step
+    train_scores = self._train_loop()
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/trainer.py", line 115, in _train_loop
+    output = self.model.forward(batch)
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/torch/nn/parallel/data_parallel.py", line 166, in forward
+    return self.module(*inputs[0], **kwargs[0])
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1130, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/modeling.py", line 213, in forward
+    y = self.pde.sde(batch)
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/pdes.py", line 445, in sde
+    return torch.exp(-batch["r"] * self.hypercubes['t'].interval[1]) * torch.nn.ReLU()(torch.pow(torch.prod(sde, dim=1), 1.0/sde.shape[-1]) - batch["K"])
+RuntimeError: CUDA out of memory. Tried to allocate 64.00 GiB (GPU 0; 15.78 GiB total capacity; 79.16 MiB already allocated; 14.45 GiB free; 106.00 MiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF

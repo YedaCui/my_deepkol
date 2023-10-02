@@ -4,7 +4,8 @@ from operator import mul
 from functools import reduce
 import torch
 from torch.utils.data import Dataset, DataLoader
-from copy import deepcopy
+import numpy as np
+import time
 
 
 class Hypercube:
@@ -410,57 +411,134 @@ class BSr(Pde):
             return (batch[param] - self.hypercubes[param].mean) / self.hypercubes[param].std
 
 
-# class BSr(Pde):
-#     params = ("t", "x", "r", "sigma", "kappa")
 
-#     def __init__(self, hypercubes=HYPERCUBES["black_scholes_r"]):
-#         super().__init__(hypercubes)
+HYPERCUBES["black_scholes_basket"] = {
+    "t": Hypercube(interval=[0.0, 1.0]),
+    "s": Hypercube(interval=[9.0, 10.0], dims=(2,)),
+    "r": Hypercube(interval=[0.005, 0.8]),
+    "sigma": Hypercube(interval=[0.1, 0.6], dims=(2,)),
+    "rho": Hypercube(interval=[-0.1, 0.8]),
+    "kappa": Hypercube(interval=[0.8, 1.2]),
+}
 
-#     @staticmethod
-#     def _check_dims(hypercubes):
-#         return all(cube.dims == (1,) for cube in hypercubes.values())
+class BSbasket(Pde):
+    params = ("t", "x", "r", "sigma", "rho", "K")
 
-#     def sde(self, batch):
-#         """
-#         Outputs batched realizations of the SDE.
-#         """
-#         t = self.hypercubes["t"].interval[1] - batch["t"]
-#         dw = torch.sqrt(t) * torch.randn(
-#             batch["x"].shape, dtype=batch["x"].dtype, device=batch["x"].device
-#         )
-#         sde = batch["x"] * torch.exp(
-#              batch["r"] * t - 0.5 * t * batch["sigma"] ** 2 + batch["sigma"] * dw
-#         )
-#         return torch.exp(-batch["r"] * self.hypercubes['t'].interval[1]) * torch.nn.ReLU()(batch["kappa"] * batch["s"] - sde)
+    def __init__(self, hypercubes=HYPERCUBES["black_scholes_basket"]):
+        super().__init__(hypercubes)
 
-#     @staticmethod
-#     def sde0(batch):
-#         """
-#         Outputs batched realizations of the SDE.
-#         The 't' is selected at grids and 'x' represents the stock price at time 0.
-#         """
-#         dw = torch.sqrt(batch["t"]) * torch.randn(
-#             batch["s"].shape, dtype=batch["s"].dtype, device=batch["s"].device
-#         )
-#         sde = batch["s"] * torch.exp(
-#             batch["r"] * batch["t"] - 0.5 * batch["t"] * batch["sigma"] ** 2 + batch["sigma"] * dw
-#         )
-#         return sde
+    @staticmethod
+    def _check_dims(hypercubes):
+        return True
 
-#     def solution(self, batch):
-#         """
-#         Outputs the exact solution.
-#         """
-#         t = self.hypercubes["t"].interval[1] - batch["t"]
-#         sigma_sqrtt = batch["sigma"] * torch.sqrt(t)
-#         _d = (
-#             -(
-#                 torch.log(batch["x"] / batch["kappa"] / batch["s"])
-#                 + batch["r"] * t +  0.5 * t * batch["sigma"] ** 2
-#             )
-#             / sigma_sqrtt
-#         )
-#         return batch["kappa"] * batch["s"] * torch.exp(-batch["r"]*t) * n_dist(_d + sigma_sqrtt) - batch["x"] * n_dist(_d)
+    def sde(self, batch):
+        """
+        Outputs batched realizations of the SDE.
+        """
+        t = self.hypercubes["t"].interval[1] - batch["t"]
+        #print("begin to calculate the sqrt of cov at ")
+        #print(time.time())
+        n = batch["sigma"].shape[-1]
+        batch_size = batch["sigma"].shape[0]
+        RHO = batch["rho"].view(batch_size, 1, 1).expand(batch_size, n, n).clone()
+        RHO.as_strided((batch_size, n), (n ** 2, n + 1)).fill_(1)
+        sqrt_cov = torch.linalg.cholesky(RHO)
+        # sqrt_cov = torch.linalg.cholesky(torch.stack([torch.full((batch["x"].shape[-1], batch["x"].shape[-1]), rho[0], dtype=batch["x"].dtype, device=batch["x"].device).fill_diagonal_(1) for rho in batch["rho"]]))
+        #print("complete to calculate the sqrt of cov at ")
+        #print(time.time())
+        #print("begin to calculate the dw at ")
+        #print(time.time())
+        dw = torch.sqrt(t) * torch.matmul(sqrt_cov, 
+                                                torch.randn(batch["x"].shape, dtype=batch["x"].dtype, device=batch["x"].device).unsqueeze(2)
+        ).squeeze(2)
+        #print("complete to calculate the dw at ")
+        #print(time.time())
+        #print("begin to calculate the sde at ")
+        #print(time.time())
+        sde = batch["x"] * torch.exp(
+             batch["r"] * t - 0.5 * t * batch["sigma"] ** 2 + batch["sigma"] * dw
+        )
+        #print("complete to calculate the sde at ")
+        #print(time.time())
+        return torch.exp(-batch["r"] * self.hypercubes['t'].interval[1]) * torch.nn.ReLU()(torch.pow(torch.prod(sde, dim=1, keepdim=True), 1.0/sde.shape[-1]) - batch["K"])
+
+    @staticmethod
+    def get_X(batch):
+        """
+        get the X from S_0
+        """
+        #print("begin to calculate the sqrt of cov at ")
+        #print(time.time())
+        n = batch["sigma"].shape[-1]
+        batch_size = batch["sigma"].shape[0]
+        RHO = batch["rho"].view(batch_size, 1, 1).expand(batch_size, n, n).clone()
+        RHO.as_strided((batch_size, n), (n ** 2, n + 1)).fill_(1)
+        sqrt_cov = torch.linalg.cholesky(RHO)
+        # sqrt_cov = torch.linalg.cholesky(torch.stack([torch.full((batch["s"].shape[-1], batch["s"].shape[-1]), rho[0], dtype=batch["s"].dtype, device=batch["s"].device).fill_diagonal_(1) for rho in batch["rho"]]))
+        #print("complete to calculate the sqrt of cov at ")
+        #print(time.time())
+        #print("begin to calculate the dw at ")
+        #print(time.time())
+        dw = torch.sqrt(batch["t"]) * torch.matmul(sqrt_cov, 
+                                                torch.randn(batch["s"].shape, dtype=batch["s"].dtype, device=batch["s"].device).unsqueeze(2)
+        ).squeeze(2)
+        #print("complete to calculate the dw at ")
+        #print(time.time())
+        #print("begin to calculate the sde at ")
+        #print(time.time())
+        sde = batch["s"] * torch.exp(
+            batch["r"] * batch["t"] - 0.5 * batch["t"] * batch["sigma"] ** 2 + batch["sigma"] * dw
+        )
+        #print("complete to calculate the sde at ")
+        #print(time.time())
+        return sde
+
+    @staticmethod
+    def get_K(batch):
+        """
+        Get the K from kappa and S_0
+        """
+        return batch["kappa"] * torch.pow(torch.prod(batch["s"], dim=1, keepdim=True), 1.0/batch["s"].shape[-1])
+
+    def solution(self, batch):
+        """
+        Outputs the exact solution.
+        """
+        t = self.hypercubes["t"].interval[1] - batch["t"]
+        n = batch["sigma"].shape[-1]
+        batch_size = batch["sigma"].shape[0]
+        #print("begin to calculate the sqrt of RHO at ")
+        #print(time.time())
+        RHO = batch["rho"].view(batch_size, 1, 1).expand(batch_size, n, n).clone()
+        RHO.as_strided((batch_size, n), (n ** 2, n + 1)).fill_(1)
+        #print(RHO.shape)
+        # RHO = torch.stack([torch.full((n,n), rho[0], dtype=batch["sigma"].dtype, device=batch["sigma"].device).fill_diagonal_(1) for rho in batch["rho"]])
+        #print("complete to calculate the sqrt of RHO at ")
+        #print(time.time())
+        #print("begin to calculate the sqrt of sig at ")
+        #print(time.time())
+        sig = 1/n * torch.sqrt(torch.sum(batch["sigma"].unsqueeze(2) * RHO * batch["sigma"].unsqueeze(1), (1,2))).reshape((-1,1))
+        #print("complete to calculate the sqrt of sig at ")
+        #print(time.time())
+        sigma_sqrtt = sig * torch.sqrt(t)
+        #print("begin to calculate the sqrt of F at ")
+        #print(time.time())
+        F = torch.pow(torch.prod(batch["s"], dim=1, keepdim=True), 1.0/batch["s"].shape[-1]) * torch.exp(t * (batch["r"] - 0.5 * torch.mean(batch["sigma"] ** 2, 1, keepdim=True) + 0.5 * sig ** 2))
+        #print("complete to calculate the sqrt of F at ")
+        #print(time.time())
+        _d =(
+                torch.log(F / batch["K"])
+                 +  0.5 * t * sig ** 2
+            ) / sigma_sqrtt
+        return torch.exp(-batch["r"]*t) * (F * n_dist(_d) - batch["K"] * n_dist(_d - sigma_sqrtt))
+    
+    def naf(self, batch, param):
+        if param == "x":
+            return (batch[param] - self.hypercubes["s"].mean) /  self.hypercubes["s"].std
+        elif param == 'K':
+            return (batch[param] - self.hypercubes["s"].mean * self.hypercubes["kappa"].mean) / (self.hypercubes["kappa"].mean ** 2 * self.hypercubes["s"].std ** 2 + self.hypercubes["s"].mean ** 2 * self.hypercubes["kappa"].std ** 2) ** 0.5
+        else:
+            return (batch[param] - self.hypercubes[param].mean) / self.hypercubes[param].std
 
 
 HYPERCUBES.update(

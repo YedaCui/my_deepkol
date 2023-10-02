@@ -1,0 +1,19 @@
+Failure # 1 (occurred at 2023-10-02_18-29-44)
+The actor died because of an error raised in its creation task, [36mray::Trainer.__init__()[39m (pid=8955, ip=137.189.58.22, actor_id=6f5070bb8a2e9e99ec93890a01000000, repr=<deep_kolmogorov.trainer.Trainer object at 0x7f4eda453400>)
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/ray/tune/trainable/trainable.py", line 169, in __init__
+    self.setup(copy.deepcopy(self.config))
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/trainer.py", line 78, in setup
+    first_scores = self._test_loop()
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/trainer.py", line 129, in _test_loop
+    output = self.model.forward(batch, train=False)
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/torch/nn/parallel/data_parallel.py", line 166, in forward
+    return self.module(*inputs[0], **kwargs[0])
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1130, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/modeling.py", line 216, in forward
+    y = torch.exp(- batch["r"] * batch["t"]) * self.pde.solution(batch)
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/pdes.py", line 502, in solution
+    RHO = torch.full((batch_size, n, n), batch["rho"].view(batch_size, 1, 1), dtype=batch["sigma"].dtype, device=batch["sigma"].device).as_strided((batch_size, n), (n + 1, n + 1)).fill_(1)
+TypeError: full() received an invalid combination of arguments - got (tuple, Tensor, device=torch.device, dtype=torch.dtype), but expected one of:
+ * (tuple of ints size, Number fill_value, *, Tensor out, torch.dtype dtype, torch.layout layout, torch.device device, bool pin_memory, bool requires_grad)
+ * (tuple of ints size, Number fill_value, *, tuple of names names, torch.dtype dtype, torch.layout layout, torch.device device, bool pin_memory, bool requires_grad)

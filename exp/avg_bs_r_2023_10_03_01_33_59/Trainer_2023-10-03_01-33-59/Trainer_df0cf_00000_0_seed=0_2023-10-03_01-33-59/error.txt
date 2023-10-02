@@ -1,0 +1,17 @@
+Failure # 1 (occurred at 2023-10-03_01-35-03)
+[36mray::Trainer.train()[39m (pid=62176, ip=137.189.58.22, actor_id=462a31126eb6c3294e028a5701000000, repr=<deep_kolmogorov.trainer.Trainer object at 0x7f92cdbbb850>)
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/ray/tune/trainable/trainable.py", line 375, in train
+    raise skipped from exception_cause(skipped)
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/ray/tune/trainable/trainable.py", line 372, in train
+    result = self.step()
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/trainer.py", line 100, in step
+    self.save_checkpoint(os.path.join(os.getcwd(), f"check{self.iteration}_"))
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/trainer.py", line 138, in save_checkpoint
+    torch.save(self.net.state_dict(), checkpoint_path)
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/torch/serialization.py", line 376, in save
+    with _open_file_like(f, 'wb') as opened_file:
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/torch/serialization.py", line 230, in _open_file_like
+    return _open_file(name_or_buffer, mode)
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/torch/serialization.py", line 211, in __init__
+    super(_open_file, self).__init__(open(name, mode))
+FileNotFoundError: [Errno 2] No such file or directory: '/home/ycui/Documents/my_deepkol/exp/avg_bs_r_2023_10_03_01_33_59/Trainer_2023-10-03_01-33-59/Trainer_df0cf_00000_0_seed=0_2023-10-03_01-33-59/check0_/model.pth'

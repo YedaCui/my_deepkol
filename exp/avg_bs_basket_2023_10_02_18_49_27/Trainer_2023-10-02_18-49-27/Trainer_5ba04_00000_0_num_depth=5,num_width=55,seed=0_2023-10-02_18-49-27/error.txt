@@ -1,0 +1,19 @@
+Failure # 1 (occurred at 2023-10-02_18-49-33)
+The actor died because of an error raised in its creation task, [36mray::Trainer.__init__()[39m (pid=16910, ip=137.189.58.22, actor_id=9490ae1b9d79ca64187b6f6e01000000, repr=<deep_kolmogorov.trainer.Trainer object at 0x7fb3468cb460>)
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/ray/tune/trainable/trainable.py", line 169, in __init__
+    self.setup(copy.deepcopy(self.config))
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/trainer.py", line 78, in setup
+    first_scores = self._test_loop()
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/trainer.py", line 127, in _test_loop
+    for batch in self.test_loader:
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/torch/utils/data/dataloader.py", line 652, in __next__
+    data = self._next_data()
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/torch/utils/data/dataloader.py", line 692, in _next_data
+    data = self._dataset_fetcher.fetch(index)  # may raise StopIteration
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/torch/utils/data/_utils/fetch.py", line 51, in fetch
+    data = self.dataset[possibly_batched_index]
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/pdes.py", line 79, in __getitem__
+    batch["x"] = self.get_X(batch)
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/pdes.py", line 471, in get_X
+    sqrt_cov = torch.linalg.cholesky(RHO)
+torch._C._LinAlgError: torch.linalg_cholesky: (Batch element 1): The factorization could not be completed because the input is not positive-definite (the leading minor of order 2 is not positive-definite).
