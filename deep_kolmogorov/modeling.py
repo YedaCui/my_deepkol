@@ -94,16 +94,16 @@ class DeepONet(BaseNet):
 
     def __init__(self, dim_in, config):
         super().__init__(dim_in, config)
-        self.size_t, self.size_s, self.size_u = self.config["size_t_s_u"]
+        self.size_t, self.size_x, self.size_u = self.config["size_t_x_u"]
         self.branch = DenseNet([self.size_u] + [self.config["num_width"]] * self.config["num_depth"])
-        self.trunk = DenseNet([self.size_t + self.size_s] + [self.config["num_width"]] * self.config["num_depth"])
+        self.trunk = DenseNet([self.size_t + self.size_x] + [self.config["num_width"]] * self.config["num_depth"])
 
     def forward(self, tensor: torch.Tensor) -> torch.Tensor:
         """
         The input of state can be either 3-dim or 4-dim but once fixed a problem the
         dimension of the input tensor is fixed.
         """
-        time_tensor, state_tensor, u_tensor = tensor[:, 0:self.size_t], tensor[:, self.size_t:self.size_s+self.size_t], tensor[:, self.size_s+self.size_t:]
+        time_tensor, state_tensor, u_tensor = tensor[:, 0:self.size_t], tensor[:, self.size_t:self.size_x+self.size_t], tensor[:, self.size_x+self.size_t:]
         br = self.branch(u_tensor)
         tr = self.trunk(torch.cat([time_tensor, state_tensor], -1))
         value = torch.sum(br * tr, dim=-1, keepdim=True)
@@ -213,8 +213,19 @@ class KolmogorovNet(torch.nn.Module):
                 y = self.pde.sde(batch)
             else:
                 y = torch.exp(- batch["r"] * batch["t"]) * self.pde.solution(batch)
+            # if torch.isnan(y).any().item() == True:
+            #     print(torch.where(torch.isnan(y)))
             tensor = self.pde.normalize_and_flatten(batch)
+        # if torch.isnan(tensor).any().item() == True:
+        #     print(torch.where(torch.isnan(tensor)))
+        # print(tensor)
         y_pred = torch.exp(- batch["r"] * batch["t"]) * self.net.forward(tensor)
+        # print("batch is ")
+        # print(batch)
+        # print("y is ")
+        # print(y)
+        # print("predict is ")
+        # print(y_pred)
         return {"pde": y, "net": y_pred}
 
 
@@ -223,7 +234,7 @@ class Metrics:
     Returns the metrics for our trainer.
     """
 
-    names = ["mse", "L2^2", "mae", "L1"]
+    names = ["mse", "L2^2", "mae", "L1", "L1_std"]
 
     def __init__(self):
         self.best = {name: 1.0e10 for name in self.names}
@@ -243,6 +254,7 @@ class Metrics:
             "L2^2": (rel_error ** 2).mean(),
             "mae": abs_error.mean(),
             "L1": rel_error.mean(),
+            "L1_std": rel_error.std(),
         }
         for name in self.names:
             self._running[name] += loss[name].item()

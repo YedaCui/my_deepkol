@@ -28,14 +28,14 @@ def compatibility(config):
         config["lr_decay"] = config.pop("decay")
     if "decay_patience" in config:
         config["lr_decay_patience"] = config.pop("decay_patience")
-    for k in ["net", "pde"]:
-        config[k] = "".join(
-            [
-                s
-                for word in config[k].split("_")
-                for s in [word[0].capitalize(), word[1:]]
-            ]
-        )
+    # for k in ["net", "pde"]:
+    #     config[k] = "".join(
+    #         [
+    #             s
+    #             for word in config[k].split("_")
+    #             for s in [word[0].capitalize(), word[1:]]
+    #         ]
+    #     )
     return config
 
 
@@ -262,138 +262,6 @@ def stopper_factory(metrics, thresholds, modes):
 
 
 HYPERCONFIGS = {
-    "compare_nets_bs": {
-        "seed": tune.grid_search([0, 1, 2, 3]),
-        "checkpoint": True,
-        "pde": "BlackScholes",
-        "net": tune.grid_search(list(NETS.keys())),
-        "norm_layer": tune.grid_search(list(NORMLAYERS.keys())),
-        "opt": "adamw",
-        "bs": 65536,
-        "lr": 0.01,
-        "min_lr": 1e-8,
-        "lr_decay": 0.25,
-        "lr_decay_patience": 2,
-        "weight_decay": 0.01,
-        "unfreeze": "all",
-        "unfreeze_patience": 1,
-        "levels": 4,
-        "factor": 5,
-        "n_iterations": 15,
-        "n_train_batches": 2000,
-        "n_test_batches": 150,
-    },
-    "compare_nets_heat": {
-        "seed": tune.grid_search([0, 1, 2, 3]),
-        "checkpoint": False,
-        "pde": "HeatParaboloid",
-        "net": tune.grid_search(list(NETS.keys())),
-        "norm_layer": "batchnorm",
-        "opt": "adamw",
-        "bs": 131072,
-        "lr": 0.001,
-        "min_lr": 1e-8,
-        "lr_decay": 0.4,
-        "lr_decay_patience": 2,
-        "weight_decay": 0.01,
-        "unfreeze": "all",
-        "unfreeze_patience": 1,
-        "levels": 4,
-        "factor": 4,
-        "n_iterations": 15,
-        "n_train_batches": 2000,
-        "n_test_batches": 150,
-    },
-    "compare_freeze": {
-        "seed": tune.grid_search([0, 1, 2, 3]),
-        "checkpoint": False,
-        "pde": "BlackScholes",
-        "net": tune.grid_search(["MultilevelNet", "MultilevelNetNoRes"]),
-        "norm_layer": "batchnorm",
-        "opt": "adamw",
-        "bs": 65536,
-        "lr": 0.01,
-        "min_lr": 1e-8,
-        "lr_decay": 0.25,
-        "lr_decay_patience": 2,
-        "weight_decay": 0.01,
-        "unfreeze": tune.grid_search(["sequential", "single", "all"]),
-        "unfreeze_patience": 1,
-        "levels": 4,
-        "factor": 5,
-        "n_iterations": 15,
-        "n_train_batches": 2000,
-        "n_test_batches": 150,
-    },
-    "dims_heat_paraboloid": {
-        "seed": tune.grid_search([0, 1, 2, 3]),
-        "checkpoint": True,
-        "pde": "HeatParaboloid",
-        "net": "MultilevelNet",
-        "norm_layer": "batchnorm",
-        "opt": "adamw",
-        "bs": 131072,
-        "lr": 0.001,
-        "min_lr": 1e-8,
-        "lr_decay": 0.4,
-        "lr_decay_patience": 16,
-        "weight_decay": 0.01,
-        "unfreeze": "all",
-        "unfreeze_patience": 1,
-        "levels": 4,
-        "factor": 4,
-        "n_iterations": 100,
-        "n_train_batches": 250,
-        "n_test_batches": 150,
-        "hypercubes": tune.grid_search(
-            [f"heat_para_{d_heat_para}d" for d_heat_para in range(1, 16)]
-        ),
-        "stopper": stopper_factory(
-            ["val/current/L1", "training_iteration"], [0.01, 100], ["min", "max"]
-        ),
-    },
-    "avg_heat_gaussian": {
-        "seed": tune.grid_search([0, 1, 2, 3]),
-        "checkpoint": True,
-        "pde": "HeatGaussian",
-        "net": "MultilevelNet",
-        "norm_layer": "batchnorm",
-        "opt": "adamw",
-        "bs": 131072,
-        "lr": 0.001,
-        "min_lr": 1e-8,
-        "lr_decay": 0.4,
-        "lr_decay_patience": 2,
-        "weight_decay": 0.01,
-        "unfreeze": "all",
-        "unfreeze_patience": 1,
-        "levels": 4,
-        "factor": 4,
-        "n_iterations": 15,
-        "n_train_batches": 2000,
-        "n_test_batches": 150,
-    },
-    "avg_heat_paraboloid": {
-        "seed": tune.grid_search([0, 1, 2, 3]),
-        "checkpoint": True,
-        "pde": "HeatParaboloid",
-        "net": "MultilevelNet",
-        "norm_layer": "batchnorm",
-        "opt": "adamw",
-        "bs": 131072,
-        "lr": 0.001,
-        "min_lr": 1e-8,
-        "lr_decay": 0.4,
-        "lr_decay_patience": 2,
-        "weight_decay": 0.01,
-        "unfreeze": "all",
-        "unfreeze_patience": 1,
-        "levels": 4,
-        "factor": 4,
-        "n_iterations": 15,
-        "n_train_batches": 2000,
-        "n_test_batches": 150,
-    },
     "avg_bs": {
         "seed": tune.grid_search([0]),
         "checkpoint": True,
@@ -425,7 +293,7 @@ HYPERCONFIGS = {
         "pde": "BSr",
         "net": "DeepONet",
         "opt": "adamw",
-        "bs": 65536*2,
+        "bs": 120000,
         "lr": 0.01,
         "min_lr": 1e-8,
         "lr_decay": 0.25,
@@ -442,13 +310,13 @@ HYPERCONFIGS = {
         "num_depth" : 6,
         "num_width" : 55
     },
-    "avg_bs_basket": {
+    "avg_bs_lookback": {
         "seed": tune.grid_search([0]),
         "checkpoint": True,
-        "pde": "BSbasket",
+        "pde": "BSlookback",
         "net": "DeepONet",
         "opt": "adamw",
-        "bs": 65536,
+        "bs": 120000,
         "lr": 0.01,
         "min_lr": 1e-8,
         "lr_decay": 0.25,
@@ -459,54 +327,54 @@ HYPERCONFIGS = {
         "n_iterations": 30,
         "n_train_batches": 2000,
         "n_test_batches": 150,
-        "size_t_s_u": [1,2,5],
-        "num_depth" : tune.grid_search([5]),
-        "num_width" : tune.grid_search([55])
+        "size_t_x_u": [1,2,2],
+        "num_width" : tune.grid_search([35,55,75]),
+        "num_depth" : 5,
+        # "num_width" : 55
     },
-    "avg_basket": {
-        "seed": tune.grid_search([0, 1, 2, 3]),
+        "avg_bs_asian": {
+        "seed": tune.grid_search([0]),
         "checkpoint": True,
-        "pde": "Basket",
-        "net": "MultilevelNet",
-        "norm_layer": "batchnorm",
+        "pde": "BSasian",
+        "net": "DeepONet",
         "opt": "adamw",
-        "bs": 131072,
-        "lr": 0.001,
+        "bs": 12,
+        "lr": 0.01,
         "min_lr": 1e-8,
-        "lr_decay": 0.4,
-        "lr_decay_patience": 1,
-        "weight_decay": 0.01,
-        "unfreeze": "all",
-        "unfreeze_patience": 1,
-        "levels": 4,
-        "factor": 5,
-        "n_iterations": 7,
-        "n_train_batches": 4000,
-        "n_test_batches": 1,
-    },
-    "optimize_bs": {
-        "seed": 0,
-        "checkpoint": False,
-        "pde": "BlackScholes",
-        "net": "MultilevelNet",
-        "norm_layer": "batchnorm",
-        "opt": tune.grid_search(list(OPTIMIZERS.keys())),
-        "bs": tune.grid_search([131072, 65536, 32768, 16384]),
-        "lr": tune.uniform(1e-1, 1e-5),
-        "min_lr": 1e-8,
-        "lr_decay": tune.uniform(0.2, 0.6),
+        "lr_decay": 0.25,
         "lr_decay_patience": 2,
         "weight_decay": 0.01,
         "unfreeze": "all",
         "unfreeze_patience": 1,
-        "levels": tune.grid_search([3, 4]),
-        "factor": tune.grid_search([4, 5, 6]),
-        "n_iterations": 15,
+        "n_iterations": 30,
         "n_train_batches": 2000,
         "n_test_batches": 150,
-        "sched": True,
-        "num_samples": 4,
+        "size_t_x_u": [1,2,3],
+        "num_width" : tune.grid_search([35,55,75]),
+        "num_depth" : 5,
+        # "num_width" : 55
     },
+    "avg_bs_basket": {
+        "seed": tune.grid_search([0]),
+        "checkpoint": True,
+        "pde": "BSbasket",
+        "net": "DeepONet",
+        "opt": "adamw",
+        "bs": 120000,
+        "lr": 0.01,
+        "min_lr": 1e-8,
+        "lr_decay": 0.25,
+        "lr_decay_patience": 2,
+        "weight_decay": 0.01,
+        "unfreeze": "all",
+        "unfreeze_patience": 1,
+        "n_iterations": 30,
+        "n_train_batches": 2000,
+        "n_test_batches": 1,
+        "size_t_x_u": [1,10,13],
+        "num_depth" : tune.grid_search([5]),
+        "num_width" : tune.grid_search([35, 55, 75])
+    }
 }
 
 

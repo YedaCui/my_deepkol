@@ -1,0 +1,9 @@
+Failure # 1 (occurred at 2023-10-14_22-31-03)
+[36mray::Trainer.train()[39m (pid=424445, ip=137.189.58.22, actor_id=b65d232b1e7697847031772a01000000, repr=<deep_kolmogorov.trainer.Trainer object at 0x7fa0e6a5b970>)
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/ray/tune/trainable/trainable.py", line 375, in train
+    raise skipped from exception_cause(skipped)
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/ray/tune/trainable/trainable.py", line 372, in train
+    result = self.step()
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/trainer.py", line 103, in step
+    "lr_groups": lr_groups,
+NameError: name 'lr_groups' is not defined
