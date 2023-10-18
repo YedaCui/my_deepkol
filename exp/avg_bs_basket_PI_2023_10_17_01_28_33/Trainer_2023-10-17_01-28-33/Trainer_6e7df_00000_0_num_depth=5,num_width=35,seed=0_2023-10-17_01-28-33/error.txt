@@ -1,0 +1,27 @@
+Failure # 1 (occurred at 2023-10-17_01-28-39)
+The actor died because of an error raised in its creation task, [36mray::Trainer.__init__()[39m (pid=237633, ip=137.189.58.22, actor_id=60fab100cc90468ed802982201000000, repr=<deep_kolmogorov.trainer.Trainer object at 0x7f2fd69fbca0>)
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/ray/tune/trainable/trainable.py", line 169, in __init__
+    self.setup(copy.deepcopy(self.config))
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/trainer.py", line 78, in setup
+    first_scores = self._test_loop()
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/trainer.py", line 129, in _test_loop
+    output = self.model.forward(batch, train=False)
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/torch/nn/parallel/data_parallel.py", line 166, in forward
+    return self.module(*inputs[0], **kwargs[0])
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1130, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/modeling.py", line 260, in forward
+    y_pred = torch.exp(- batch["r"] * batch["t"]) * self.net.forward(tensor)
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/modeling.py", line 144, in forward
+    state_before_pi = self.PI_layers(state_tensor)
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1130, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/torch/nn/modules/container.py", line 139, in forward
+    input = module(input)
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1130, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/modeling.py", line 125, in forward
+    output = torch.tensordot(inputs, self.kernel, dims=([-1], [0])) + self.bias
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/torch/functional.py", line 1064, in tensordot
+    return _VF.tensordot(a, b, dims_a, dims_b)  # type: ignore[attr-defined]
+RuntimeError: Expected all tensors to be on the same device, but found at least two devices, cuda:0 and cpu! (when checking argument for argument mat2 in method wrapper_mm)

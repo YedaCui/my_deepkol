@@ -374,6 +374,31 @@ HYPERCONFIGS = {
         "size_t_x_u": [1,10,13],
         "num_depth" : tune.grid_search([5]),
         "num_width" : tune.grid_search([35, 55, 75])
+    },
+        "avg_bs_basket_PI": {
+        "seed": tune.grid_search([0]),
+        "checkpoint": True,
+        "pde": "BSbasket",
+        "net": "DeepONetwithPI",
+        "opt": "adamw",
+        "bs": 120000,
+        "lr": 0.01,
+        "min_lr": 1e-8,
+        "lr_decay": 0.25,
+        "lr_decay_patience": 2,
+        "weight_decay": 0.01,
+        "unfreeze": "all",
+        "unfreeze_patience": 1,
+        "n_iterations": 30,
+        "n_train_batches": 2000,
+        "n_test_batches": 1,
+        "size_t_x_u": [1,50,13],
+        "num_depth" : tune.grid_search([5]),
+        "num_width" : tune.grid_search([35, 55, 75]),
+        # "num_width" : tune.grid_search([75]),
+        "num_assets" : 10,
+        # "pi_layer" : [50,50]
+        "pi_layer" :  tune.grid_search([[70,70],[100,100]])
     }
 }
 

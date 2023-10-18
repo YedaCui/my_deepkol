@@ -110,6 +110,47 @@ class DeepONet(BaseNet):
         return value
 
 
+class PermutationInvariantLayer(nn.Module):
+    def __init__(self, num_outputs):
+        super(PermutationInvariantLayer, self).__init__()
+        self.num_outputs = num_outputs
+        ## valid when loading checkpoint the shape of the parameters should be same as the experiment
+        self.kernel = None
+        self.bias = None
+
+
+    def forward(self, inputs):
+        if self.kernel is None:
+            _, _, in_features = inputs.shape
+            self.kernel = nn.Parameter(torch.randn(in_features, self.num_outputs, device=inputs.device))
+            self.bias = nn.Parameter(torch.randn(self.num_outputs, device=inputs.device))
+        output = torch.tensordot(inputs, self.kernel, dims=([-1], [0])) + self.bias
+        output = torch.relu(output)
+        return output
+
+
+class DeepONetwithPI(DeepONet):
+    def __init__(self, dim_in, config):
+        config["size_t_x_u"] = [config["size_t_x_u"][0], config["pi_layer"][0], config["size_t_x_u"][-1]] # update the size_t_x_u
+        super(DeepONetwithPI, self).__init__(dim_in, config)
+        self.num_assets = config["num_assets"]
+        self.PI_layers = nn.Sequential(*[PermutationInvariantLayer(m) for m in config["pi_layer"]])
+        bin = self.PI_layers(torch.randn(1,10,1, device=torch.device("cuda"))) # add it when loading checkpoint with the input shape same as the experiment
+
+    def reshape_state(self, state: torch.Tensor):
+        batch_size, dim = state.shape
+        num_markov = dim // self.num_assets
+        return state.view(batch_size, self.num_assets, num_markov)
+
+    def forward(self, tensor: Tuple[torch.Tensor]) -> torch.Tensor:
+        time_tensor, state_tensor, u_tensor = tensor[:, 0:self.size_t], tensor[:, self.size_t:-self.size_u], tensor[:, -self.size_u:]
+        state_tensor = self.reshape_state(state_tensor)
+        state_before_pi = self.PI_layers(state_tensor)
+        state_after_pi = torch.mean(state_before_pi, dim=-2)
+        inputs_for_deeponet = torch.concat([time_tensor, state_after_pi, u_tensor], dim=1)
+        return super(DeepONetwithPI, self).forward(inputs_for_deeponet)
+
+
 class LevelNet(nn.Module):
     """
     Network module for a single level.
