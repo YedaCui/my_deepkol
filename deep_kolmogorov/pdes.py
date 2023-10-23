@@ -337,7 +337,7 @@ class BlackScholes(Pde):
 HYPERCUBES["black_scholes_r"] = {
     "t": Hypercube(interval=[0.0, 1.0]),
     "s": Hypercube(interval=[9.0, 10.0]),
-    "r": Hypercube(interval=[0.005, 0.8]),
+    "r": Hypercube(interval=[0.005, 0.08]),
     # "r": Hypercube(interval=[0, 1e-8]),
     "sigma": Hypercube(interval=[0.1, 0.6]),
     "kappa": Hypercube(interval=[0.8, 1.2]),
@@ -365,7 +365,7 @@ class BSr(Pde):
         sde = batch["x"] * torch.exp(
              batch["r"] * t - 0.5 * t * batch["sigma"] ** 2 + batch["sigma"] * dw
         )
-        return torch.exp(-batch["r"] * self.hypercubes['t'].interval[1]) * torch.nn.ReLU()(batch["K"] - sde)
+        return torch.exp(-batch["r"] * self.hypercubes['t'].interval[1]) * torch.nn.ReLU()(sde - batch["K"])
 
     @staticmethod
     def get_X(batch):
@@ -394,13 +394,13 @@ class BSr(Pde):
         t = self.hypercubes["t"].interval[1] - batch["t"]
         sigma_sqrtt = batch["sigma"] * torch.sqrt(t)
         _d = (
-            -(
+            (
                 torch.log(batch["x"] / batch["K"])
                 + batch["r"] * t +  0.5 * t * batch["sigma"] ** 2
             )
             / sigma_sqrtt
         )
-        return batch["K"] * torch.exp(-batch["r"]*t) * n_dist(_d + sigma_sqrtt) - batch["x"] * n_dist(_d)
+        return batch["x"] * n_dist(_d) - batch["K"] * torch.exp(-batch["r"]*t) * n_dist(_d - sigma_sqrtt)
     
     def naf(self, batch, param):
         if param == "x":
@@ -411,11 +411,115 @@ class BSr(Pde):
             return (batch[param] - self.hypercubes[param].mean) / self.hypercubes[param].std
 
 
+HYPERCUBES["black_scholes_TI"] = {
+    "t": Hypercube(interval=[0.0, 1.0]),
+    "s": Hypercube(interval=[9.0, 10.0]),
+    "r0": Hypercube(interval=[0.005, 0.08]),
+    "r1": Hypercube(interval=[0.001, 0.004]),
+    "r2": Hypercube(interval=[0, 0.01]),
+    "sigma_bar": Hypercube(interval=[0.1, 0.6]),
+    "beta": Hypercube(interval=[0.01, 0.04]),
+    "kappa": Hypercube(interval=[0.8, 1.2]),
+}
+
+
+class BSTI(Pde):
+    params = ("t", "x", "r", "sigma", "beta", "K")
+    ### WARNNING ###
+    # the function get_X assume the T is 1
+
+    def __init__(self, hypercubes=HYPERCUBES["black_scholes_TI"]):
+        super().__init__(hypercubes)
+
+    @staticmethod
+    def _check_dims(hypercubes):
+        return all(cube.dims == (1,) for cube in hypercubes.values())
+    
+    @staticmethod
+    def get_rmt(t0, t1, r0, r1, r2):
+        # n stands for the number of time slots
+        return r0 * (t1 - t0) + 0.5 * r1 * (t1**2 - t0**2) + 1/3 * r2 * (t1**3 - t0**3)
+
+    @staticmethod
+    def get_s2mt(t0, t1, T, sigma_bar, beta):
+        # n stands for the number of time slots
+        beta = 2 * beta
+        return sigma_bar**2 * torch.exp(-beta*T) / beta * (torch.exp(beta * t1) - torch.exp(beta * t0))
+
+    def sde(self, batch):
+        """
+        Outputs batched realizations of the SDE.
+        """
+        dw = torch.randn(
+            batch["x"].shape, dtype=batch["x"].dtype, device=batch["x"].device
+        )
+        s2mt = BSTI.get_s2mt(batch["t"], self.hypercubes["t"].interval[1], self.hypercubes["t"].interval[1], batch["sigma_bar"], batch["beta"])
+        rmt = BSTI.get_rmt(batch["t"], self.hypercubes["t"].interval[1], batch["r0"], batch["r1"], batch["r2"])
+        sde = batch["x"] * torch.exp(
+            rmt - 0.5 * s2mt + torch.sqrt(s2mt) * dw
+        )
+        return torch.exp(-BSTI.get_rmt(batch["t"], self.hypercubes["t"].interval[1], batch["r0"], batch["r1"], batch["r2"])) * torch.nn.ReLU()(sde - batch["K"])
+
+    @staticmethod
+    def get_X(batch):
+        """
+        get the X from S_0
+        """
+        dw = torch.randn(
+            batch["s"].shape, dtype=batch["s"].dtype, device=batch["s"].device
+        )
+        s2mt = BSTI.get_s2mt(0, batch["t"], 1, batch["sigma_bar"], batch["beta"])
+        rmt = BSTI.get_rmt(0, batch["t"], batch["r0"], batch["r1"], batch["r2"])
+        sde = batch["s"] * torch.exp(
+            rmt - 0.5 * s2mt + torch.sqrt(s2mt) * dw
+        )
+        return sde
+
+    @staticmethod
+    def get_K(batch):
+        """
+        Get the K from kappa and S_0
+        """
+        return batch["kappa"] * batch["s"]
+    
+    @staticmethod
+    def get_r(batch):
+        """
+        Get the r(t_0), ..., r(t_K)
+        """
+        return 
+
+    def solution(self, batch):
+        """
+        Outputs the exact solution.
+        """
+        t, T = batch["t"], self.hypercubes["t"].interval[1]
+        s2mt = BSTI.get_s2mt(t, T, T, batch["sigma_bar"], batch["beta"])
+        rmt = BSTI.get_rmt(t, T, batch["r0"], batch["r1"], batch["r2"])
+        rt, st2 = rmt / (T-t), s2mt / (T-t)
+        sigma_sqrtt = torch.sqrt(st2) * torch.sqrt(T-t)
+        _d = (
+            (
+                torch.log(batch["x"] / batch["K"])
+                + rt * (T - t) +  0.5 * (T - t) * st2 ** 2
+            )
+            / sigma_sqrtt
+        )
+        return batch["x"] * n_dist(_d) - batch["K"] * torch.exp(-rt*(T-t)) * n_dist(_d - sigma_sqrtt)
+    
+    def naf(self, batch, param):
+        if param == "x":
+            return (batch[param] - self.hypercubes["s"].mean) /  self.hypercubes["s"].std
+        elif param == 'K':
+            return (batch[param] - self.hypercubes["s"].mean * self.hypercubes["kappa"].mean) / (self.hypercubes["kappa"].mean ** 2 * self.hypercubes["s"].std ** 2 + self.hypercubes["s"].mean ** 2 * self.hypercubes["kappa"].std ** 2) ** 0.5
+        else:
+            return (batch[param] - self.hypercubes[param].mean) / self.hypercubes[param].std
+
 
 HYPERCUBES["black_scholes_lookback"] = {
     "t": Hypercube(interval=[0.0, 1.0]),
     "s": Hypercube(interval=[9.0, 10.0]),
-    "r": Hypercube(interval=[0.005, 0.8]),
+    "r": Hypercube(interval=[0.005, 0.08]),
     "sigma": Hypercube(interval=[0.1, 0.6]),
 }
 
@@ -527,7 +631,7 @@ class BSlookback(Pde):
 HYPERCUBES["black_scholes_asian"] = {
     "t": Hypercube(interval=[0.0, 1.0]),
     "s": Hypercube(interval=[9.0, 10.0]),
-    "r": Hypercube(interval=[0.005, 0.8]),
+    "r": Hypercube(interval=[0.005, 0.08]),
     "sigma": Hypercube(interval=[0.1, 0.6]),
     "kappa": Hypercube(interval=[0.8, 1.2]),
 }
@@ -617,7 +721,7 @@ class BSasian(Pde):
 HYPERCUBES["black_scholes_basket"] = {
     "t": Hypercube(interval=[0.0, 1.0]),
     "s": Hypercube(interval=[9.0, 10.0], dims=(10,)),
-    "r": Hypercube(interval=[0.005, 0.8]),
+    "r": Hypercube(interval=[0.005, 0.08]),
     "sigma": Hypercube(interval=[0.1, 0.6], dims=(10,)),
     "rho": Hypercube(interval=[-0.1, 0.8]),
     "kappa": Hypercube(interval=[0.8, 1.2]),

@@ -303,12 +303,12 @@ HYPERCONFIGS = {
         "unfreeze_patience": 1,
         "n_iterations": 30,
         "n_train_batches": 2000,
-        "n_test_batches": 150,
-        "size_t_s_u": [1,1,3],
-        # "num_depth" : tune.grid_search([6]),
-        # "num_width" : tune.grid_search([55])
-        "num_depth" : 6,
-        "num_width" : 55
+        "n_test_batches": 1,
+        "size_t_x_u": [1,1,3],
+        "num_width" : tune.grid_search([35,55,75]),
+        "num_depth" : 5,
+        # "num_depth" : 6,
+        # "num_width" : 55
     },
     "avg_bs_lookback": {
         "seed": tune.grid_search([0]),

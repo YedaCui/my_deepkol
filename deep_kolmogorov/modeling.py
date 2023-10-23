@@ -151,6 +151,39 @@ class DeepONetwithPI(DeepONet):
         return super(DeepONetwithPI, self).forward(inputs_for_deeponet)
 
 
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class DenseOperator(nn.Module):
+    def __init__(self, num_outputs):
+        super(DenseOperator, self).__init__()
+        self.num_outputs = num_outputs
+        self.w = nn.Linear(num_outputs, num_outputs)
+    
+    def forward(self, x):
+        # the x has shape batch_size + (time_steps, num_funcs), where batch_size is a 3-tuple
+        # return: batch_size + (num_outputs)
+        flat_dim = x.shape[-2] * x.shape[-1]
+        x = x.view(x.shape[0], x.shape[1], x.shape[2], flat_dim)
+        x = F.relu(self.w(x))
+        return x
+
+class KernelOperator(DenseOperator):
+    def __init__(self, filters, strides, num_outputs):
+        super(KernelOperator, self).__init__(num_outputs)
+        self.filters = filters
+        self.strides = strides
+        self.conv1 = nn.Conv1d(num_outputs, filters, strides)
+        self.conv2 = nn.Conv1d(filters, filters, 3)
+    
+    def forward(self, x):
+        # the x has shape batch_size + (time_steps, num_funcs), where batch_size is a 3-tuple
+        # return: batch_size + (num_outputs)
+        x = F.relu(self.conv1(x))
+        x = F.relu(self.conv2(x))
+        return super(KernelOperator, self).forward(x)
+
 class LevelNet(nn.Module):
     """
     Network module for a single level.
