@@ -1,0 +1,15 @@
+Failure # 1 (occurred at 2023-11-08_04-38-22)
+[36mray::Trainer.train()[39m (pid=72850, ip=137.189.58.22, actor_id=b11609cea3a0dcb903c6062801000000, repr=<deep_kolmogorov.trainer.Trainer object at 0x7f7d58f05d80>)
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/ray/tune/trainable/trainable.py", line 375, in train
+    raise skipped from exception_cause(skipped)
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/ray/tune/trainable/trainable.py", line 372, in train
+    result = self.step()
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/trainer.py", line 100, in step
+    train_scores = self._train_loop()
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/trainer.py", line 123, in _train_loop
+    loss.backward()
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/torch/_tensor.py", line 396, in backward
+    torch.autograd.backward(self, gradient, retain_graph, create_graph, inputs=inputs)
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/torch/autograd/__init__.py", line 173, in backward
+    Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+RuntimeError: CUDA out of memory. Tried to allocate 36.00 MiB (GPU 0; 15.78 GiB total capacity; 1.23 GiB already allocated; 35.19 MiB free; 1.35 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF

@@ -71,14 +71,18 @@ class Trainer(tune.Trainable):
         # metrics
         self.train_metr = Metrics()
         self.test_metr = Metrics()
+        self.val_metr = Metrics()
         # data
         self.train_loader = self.pde.dataloader(config["bs"], config["n_train_batches"], 'train')
         self.test_loader = self.pde.dataloader(config["bs"], config["n_test_batches"], 'test')
+        self.val_loader = self.pde.dataloader(config["bs"], config["n_test_batches"], 'val')
         # stats
-        first_scores = self._test_loop()
+        first_scores_test = self._test_loop()
+        first_scores_val = self._val_loop()
         self.initial_stats = {
             "params": self.num_net_params,
-            "val_initial": first_scores["current"],
+            "test_initial": first_scores_test["current"],
+            "val_initial": first_scores_val["current"],
         }
 
     @staticmethod
@@ -87,6 +91,7 @@ class Trainer(tune.Trainable):
         torch.backends.cudnn.benchmark = False
         random.seed(seed)
         torch.manual_seed(seed)
+        torch.cuda.manual_seed(seed)
 
     def step(self):
         # training loop
@@ -95,9 +100,11 @@ class Trainer(tune.Trainable):
         lr_groups = [group["lr"] for group in self.net.params_groups]
         train_scores = self._train_loop()
         self.net.decay_lr(self.iteration)
-        val_scores = self._test_loop()
+        test_scores = self._test_loop()
+        val_scores = self._val_loop()
         return {
             "val": val_scores,
+            "test": test_scores,
             "train": train_scores,
             "initial_stats": self.initial_stats,
             "lr_groups": lr_groups,
@@ -129,6 +136,18 @@ class Trainer(tune.Trainable):
                 output = self.model.forward(batch, train=False)
                 self.test_metr.store(output)
         return self.test_metr.finalize()
+    
+    def _val_loop(self):
+        # test
+        self.model.eval()
+        # zero running metrics
+        self.val_metr.zero()
+        with torch.no_grad():
+            for batch in self.val_loader:
+                # forward and metrics
+                output = self.model.forward(batch, train=False)
+                self.val_metr.store(output)
+        return self.val_metr.finalize()
 
     def save_checkpoint(self, checkpoint_dir):
         checkpoint_path = os.path.join(checkpoint_dir, "model.pth")
@@ -306,9 +325,8 @@ HYPERCONFIGS = {
         "n_test_batches": 1,
         "size_t_x_u": [1,1,3],
         "num_width" : tune.grid_search([35,55,75]),
-        "num_depth" : 5,
-        # "num_depth" : 6,
-        # "num_width" : 55
+        # "num_depth" : 7,
+        "num_depth" : tune.grid_search([5,7]),
     },
     "avg_bs_lookback": {
         "seed": tune.grid_search([0]),
@@ -338,7 +356,7 @@ HYPERCONFIGS = {
         "pde": "BSasian",
         "net": "DeepONet",
         "opt": "adamw",
-        "bs": 12,
+        "bs": 120000,
         "lr": 0.01,
         "min_lr": 1e-8,
         "lr_decay": 0.25,
@@ -348,10 +366,10 @@ HYPERCONFIGS = {
         "unfreeze_patience": 1,
         "n_iterations": 30,
         "n_train_batches": 2000,
-        "n_test_batches": 150,
+        "n_test_batches": 1,
         "size_t_x_u": [1,2,3],
         "num_width" : tune.grid_search([35,55,75]),
-        "num_depth" : 5,
+        "num_depth" : tune.grid_search([5,7]),
         # "num_width" : 55
     },
     "avg_bs_basket": {
@@ -372,7 +390,7 @@ HYPERCONFIGS = {
         "n_train_batches": 2000,
         "n_test_batches": 1,
         "size_t_x_u": [1,10,13],
-        "num_depth" : tune.grid_search([5]),
+        "num_depth" : tune.grid_search([5,7]),
         "num_width" : tune.grid_search([35, 55, 75])
     },
         "avg_bs_basket_PI": {
@@ -393,12 +411,37 @@ HYPERCONFIGS = {
         "n_train_batches": 2000,
         "n_test_batches": 1,
         "size_t_x_u": [1,50,13],
-        "num_depth" : tune.grid_search([5]),
-        "num_width" : tune.grid_search([35, 55, 75]),
-        # "num_width" : tune.grid_search([75]),
+        "num_depth" : tune.grid_search([5,7]),
+        # "num_width" : tune.grid_search([35, 55, 75]),
+        "num_width" : tune.grid_search([75]),
         "num_assets" : 10,
-        # "pi_layer" : [50,50]
         "pi_layer" :  tune.grid_search([[70,70],[100,100]])
+    },
+    "avg_bs_TI": {
+        "seed": tune.grid_search([0]),
+        "checkpoint": True,
+        "pde": "BSTI",
+        "net": "DeepKernelONet",
+        "opt": "adamw",
+        "bs": 120000,
+        "lr": 0.01,
+        "min_lr": 1e-8,
+        "lr_decay": 0.25,
+        "lr_decay_patience": 2,
+        "weight_decay": 0.01,
+        "unfreeze": "all",
+        "unfreeze_patience": 1,
+        "n_iterations": 30,
+        "n_train_batches": 2000,
+        "n_test_batches": 1,
+        "size_t_x_u": [1,1,3],
+        "num_width" : tune.grid_search([35,55,75]),
+        "num_depth" : 5,
+        "in_channels": 2, # number of time inhomogeneoust parameters
+        "num_timepoints": 20, # number of time points of the TI parameters
+        "num_outputs": 6, # the output dimension of the embedding net
+        "out_channels": 4,
+        "kernel_size": 15,
     }
 }
 
@@ -441,6 +484,7 @@ def main(config):
         resources_per_trial={"gpu": config["gpus"]},
         num_samples=num_samples,
         checkpoint_at_end=config["checkpoint"],
+        checkpoint_freq=1,
         config=config,
         resume=bool(config.pop("resume_exp")),
     )

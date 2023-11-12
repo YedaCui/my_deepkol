@@ -1,0 +1,34 @@
+{
+  "bs": 120000,
+  "checkpoint": true,
+  "factor": 6,
+  "gpus": 1,
+  "levels": 4,
+  "lr": 0.01,
+  "lr_decay": 0.25,
+  "lr_decay_patience": 2,
+  "min_lr": 1e-08,
+  "mode": "avg_bs_basket_PI",
+  "n_iterations": 30,
+  "n_test_batches": 1,
+  "n_train_batches": 2000,
+  "net": "DeepONetwithPI",
+  "norm_layer": "layernorm",
+  "num_assets": 10,
+  "num_depth": 7,
+  "num_width": 75,
+  "opt": "adamw",
+  "pde": "BSbasket",
+  "pi_layer": [
+    70
+  ],
+  "seed": 0,
+  "size_t_x_u": [
+    1,
+    50,
+    13
+  ],
+  "unfreeze": "all",
+  "unfreeze_patience": 1,
+  "weight_decay": 0.01
+}

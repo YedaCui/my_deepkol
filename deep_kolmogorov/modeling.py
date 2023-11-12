@@ -132,10 +132,10 @@ class PermutationInvariantLayer(nn.Module):
 class DeepONetwithPI(DeepONet):
     def __init__(self, dim_in, config):
         config["size_t_x_u"] = [config["size_t_x_u"][0], config["pi_layer"][0], config["size_t_x_u"][-1]] # update the size_t_x_u
-        super(DeepONetwithPI, self).__init__(dim_in, config)
+        super().__init__(dim_in, config)
         self.num_assets = config["num_assets"]
         self.PI_layers = nn.Sequential(*[PermutationInvariantLayer(m) for m in config["pi_layer"]])
-        bin = self.PI_layers(torch.randn(1,10,1, device=torch.device("cuda"))) # add it when loading checkpoint with the input shape same as the experiment
+        # bin = self.PI_layers(torch.randn(1,10,1, device=torch.device("cuda"))) # add it when loading checkpoint with the input shape same as the experiment
 
     def reshape_state(self, state: torch.Tensor):
         batch_size, dim = state.shape
@@ -148,41 +148,91 @@ class DeepONetwithPI(DeepONet):
         state_before_pi = self.PI_layers(state_tensor)
         state_after_pi = torch.mean(state_before_pi, dim=-2)
         inputs_for_deeponet = torch.concat([time_tensor, state_after_pi, u_tensor], dim=1)
-        return super(DeepONetwithPI, self).forward(inputs_for_deeponet)
+        return super().forward(inputs_for_deeponet)
 
-
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
 
 class DenseOperator(nn.Module):
     def __init__(self, num_outputs):
         super(DenseOperator, self).__init__()
         self.num_outputs = num_outputs
-        self.w = nn.Linear(num_outputs, num_outputs)
+        self.w = None
     
     def forward(self, x):
-        # the x has shape batch_size + (time_steps, num_funcs), where batch_size is a 3-tuple
-        # return: batch_size + (num_outputs)
         flat_dim = x.shape[-2] * x.shape[-1]
-        x = x.view(x.shape[0], x.shape[1], x.shape[2], flat_dim)
-        x = F.relu(self.w(x))
+        x = x.view(x.shape[0], flat_dim)
+        if self.w == None:
+            self.w = nn.Linear(flat_dim, self.num_outputs, device=x.device)
+        x = nn.functional.relu(self.w(x))
         return x
 
+
 class KernelOperator(DenseOperator):
-    def __init__(self, filters, strides, num_outputs):
+    def __init__(self, in_channels, out_channels, kernel_size, num_outputs):
         super(KernelOperator, self).__init__(num_outputs)
-        self.filters = filters
-        self.strides = strides
-        self.conv1 = nn.Conv1d(num_outputs, filters, strides)
-        self.conv2 = nn.Conv1d(filters, filters, 3)
+        self.conv1 = nn.Conv1d(in_channels, out_channels, kernel_size)
+        self.conv2 = nn.Conv1d(out_channels, out_channels, 3)
     
     def forward(self, x):
-        # the x has shape batch_size + (time_steps, num_funcs), where batch_size is a 3-tuple
-        # return: batch_size + (num_outputs)
-        x = F.relu(self.conv1(x))
-        x = F.relu(self.conv2(x))
+        x = nn.functional.relu(self.conv1(x))
+        x = nn.functional.relu(self.conv2(x))
         return super(KernelOperator, self).forward(x)
+    
+
+class DeepKernelONet(DeepONet):
+    def __init__(self, dim_in, config):
+        self.num_para = config["size_t_x_u"][-1] # number of all parameters
+        self.in_channels = config["in_channels"] # number of time inhomogeneoust parameters
+        self.num_timepoints = config["num_timepoints"] # number of time points of the TI parameters
+        self.num_outputs = config["num_outputs"] # the output dimension of the embedding net
+        self.total_u = self.num_para - self.in_channels + self.num_timepoints * self.in_channels # the total dims of parameters 
+
+        config["size_t_x_u"] = [config["size_t_x_u"][0], config["size_t_x_u"][1], self.num_para - self.in_channels + self.num_outputs] # update the size_t_x_u
+        super(DeepKernelONet, self).__init__(dim_in, config)
+        self.kernel = KernelOperator(config["in_channels"], config["out_channels"], config["kernel_size"], config["num_outputs"])
+
+    def forward(self, tensor: Tuple[torch.Tensor]) -> torch.Tensor:
+        time_tensor, state_tensor, u_tensor = tensor[:, 0:self.size_t], tensor[:, self.size_t:-self.total_u], tensor[:, -self.total_u:]
+        # embedding
+        u_const, u_ti = u_tensor[:, 0:self.num_para-self.in_channels], u_tensor[:, self.num_para-self.in_channels:].reshape(u_tensor.shape[0], self.in_channels, -1)
+        u_ti_after_embedding = self.kernel(u_ti)
+
+        inputs_for_deeponet = torch.concat([time_tensor, state_tensor, u_const, u_ti_after_embedding], dim=1)
+        return super(DeepKernelONet, self).forward(inputs_for_deeponet)
+
+
+class DeepKernelONetwithPI(DeepONet):
+    def __init__(self, dim_in, config):
+        self.num_para = config["size_t_x_u"][-1] # number of all parameters
+        self.in_channels = config["in_channels"] # number of time inhomogeneoust parameters
+        self.num_timepoints = config["num_timepoints"] # number of time points of the TI parameters
+        self.num_outputs = config["num_outputs"] # the output dimension of the embedding net
+        self.total_u = self.num_para + self.num_timepoints * (self.num_para - self.in_channels) # the total dims of parameters 
+
+        config["size_t_x_u"] = [config["size_t_x_u"][0], config["pi_layer"][0], self.num_outputs] # update the size_t_x_u
+        super(DeepKernelONetwithPI, self).__init__(dim_in, config)
+        self.num_assets = config["num_assets"]
+        self.PI_layers = nn.Sequential(*[PermutationInvariantLayer(m) for m in config["pi_layer"]])
+        # bin = self.PI_layers(torch.randn(1,10,1, device=torch.device("cuda"))) # add it when loading checkpoint with the input shape same as the experiment
+        self.kernel = KernelOperator(config["in_channels"], config["out_channels"], config["kernel_size"], config["num_outputs"])
+
+    def reshape_state(self, state: torch.Tensor):
+        batch_size, dim = state.shape
+        num_markov = dim // self.num_assets
+        return state.view(batch_size, self.num_assets, num_markov)
+
+    def forward(self, tensor: Tuple[torch.Tensor]) -> torch.Tensor:
+        time_tensor, state_tensor, u_tensor = tensor[:, 0:self.size_t], tensor[:, self.size_t:-self.total_u], tensor[:, -self.total_u:]
+        # PI net
+        state_tensor = self.reshape_state(state_tensor)
+        state_before_pi = self.PI_layers(state_tensor)
+        state_after_pi = torch.mean(state_before_pi, dim=-2)
+        # embedding
+        u_const, u_ti = u_tensor[:, 0:self.num_para-self.in_channels], u_tensor[:, self.num_para-self.in_channels:].reshape(u_tensor.shape[0], self.in_channels, -1)
+        u_ti_after_embedding = self.kernel(u_ti)
+
+        inputs_for_deeponet = torch.concat([time_tensor, state_after_pi, u_const, u_ti_after_embedding], dim=1)
+        return super(DeepKernelONetwithPI, self).forward(inputs_for_deeponet)
+
 
 class LevelNet(nn.Module):
     """
@@ -286,20 +336,15 @@ class KolmogorovNet(torch.nn.Module):
             if train:
                 y = self.pde.sde(batch)
             else:
-                y = torch.exp(- batch["r"] * batch["t"]) * self.pde.solution(batch)
-            # if torch.isnan(y).any().item() == True:
-            #     print(torch.where(torch.isnan(y)))
+                if hasattr(self.pde, "get_rmt"):
+                    y = torch.exp(- self.pde.get_rmt(0, batch["t"], batch["r0"], batch["r1"], batch["r2"])) * self.pde.solution(batch)
+                else:
+                    y = torch.exp(- batch["r"] * batch["t"]) * self.pde.solution(batch)
             tensor = self.pde.normalize_and_flatten(batch)
-        # if torch.isnan(tensor).any().item() == True:
-        #     print(torch.where(torch.isnan(tensor)))
-        # print(tensor)
-        y_pred = torch.exp(- batch["r"] * batch["t"]) * self.net.forward(tensor)
-        # print("batch is ")
-        # print(batch)
-        # print("y is ")
-        # print(y)
-        # print("predict is ")
-        # print(y_pred)
+        if hasattr(self.pde, "get_rmt"):
+            y_pred = torch.exp(- self.pde.get_rmt(0, batch["t"], batch["r0"], batch["r1"], batch["r2"])) * self.net.forward(tensor)
+        else:
+            y_pred = torch.exp(- batch["r"] * batch["t"]) * self.net.forward(tensor)
         return {"pde": y, "net": y_pred}
 
 

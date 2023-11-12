@@ -1,0 +1,9 @@
+Failure # 1 (occurred at 2023-11-12_15-20-47)
+The actor died because of an error raised in its creation task, [36mray::Trainer.__init__()[39m (pid=383810, ip=137.189.58.22, actor_id=35c1f141cd70eb1547dc889301000000, repr=<deep_kolmogorov.trainer.Trainer object at 0x7fcd8cf25d80>)
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/ray/tune/trainable/trainable.py", line 169, in __init__
+    self.setup(copy.deepcopy(self.config))
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/trainer.py", line 80, in setup
+    first_scores_test = self._test_loop()
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/trainer.py", line 132, in _test_loop
+    self.test_metr.zero()
+AttributeError: 'Trainer' object has no attribute 'test_metr'

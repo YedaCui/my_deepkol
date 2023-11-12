@@ -1,0 +1,25 @@
+Failure # 1 (occurred at 2023-11-08_04-38-30)
+[36mray::Trainer.train()[39m (pid=72928, ip=137.189.58.22, actor_id=8f4a3b6baf8cd3a22b9b6e9001000000, repr=<deep_kolmogorov.trainer.Trainer object at 0x7f52f93d9d50>)
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/ray/tune/trainable/trainable.py", line 375, in train
+    raise skipped from exception_cause(skipped)
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/ray/tune/trainable/trainable.py", line 372, in train
+    result = self.step()
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/trainer.py", line 100, in step
+    train_scores = self._train_loop()
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/trainer.py", line 121, in _train_loop
+    output = self.model.forward(batch)
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/torch/nn/parallel/data_parallel.py", line 166, in forward
+    return self.module(*inputs[0], **kwargs[0])
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1130, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/modeling.py", line 347, in forward
+    y_pred = torch.exp(- batch["r"] * batch["t"]) * self.net.forward(tensor)
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/modeling.py", line 151, in forward
+    return super(DeepONetwithPI, self).forward(inputs_for_deeponet)
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/modeling.py", line 108, in forward
+    tr = self.trunk(torch.cat([time_tensor, state_tensor], -1))
+  File "/home/ycui/.conda/envs/torch/lib/python3.10/site-packages/torch/nn/modules/module.py", line 1130, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/home/ycui/Documents/my_deepkol/deep_kolmogorov/modeling.py", line 84, in forward
+    x = torch.relu(x)
+RuntimeError: CUDA out of memory. Tried to allocate 36.00 MiB (GPU 0; 15.78 GiB total capacity; 1.27 GiB already allocated; 39.19 MiB free; 1.35 GiB reserved in total by PyTorch) If reserved memory is >> allocated memory try setting max_split_size_mb to avoid fragmentation.  See documentation for Memory Management and PYTORCH_CUDA_ALLOC_CONF
