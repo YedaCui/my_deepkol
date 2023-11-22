@@ -436,7 +436,7 @@ HYPERCONFIGS = {
         "n_test_batches": 1,
         "size_t_x_u": [1,1,3],
         "num_width" : tune.grid_search([35,55,75]),
-        "num_depth" : 5,
+        "num_depth" : tune.grid_search([5,7]),
         "in_channels": 2, # number of time inhomogeneoust parameters
         "num_timepoints": 20, # number of time points of the TI parameters
         "num_outputs": 6, # the output dimension of the embedding net
