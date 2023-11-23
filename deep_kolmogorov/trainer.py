@@ -442,6 +442,32 @@ HYPERCONFIGS = {
         "num_outputs": 6, # the output dimension of the embedding net
         "out_channels": 4,
         "kernel_size": 15,
+    },
+    "avg_bs_basket_TI": {
+        "seed": tune.grid_search([0]),
+        "checkpoint": True,
+        "pde": "BSbasketTI",
+        "net": "DeepKernelONet",
+        "opt": "adamw",
+        "bs": 120000,
+        "lr": 0.01,
+        "min_lr": 1e-8,
+        "lr_decay": 0.25,
+        "lr_decay_patience": 2,
+        "weight_decay": 0.01,
+        "unfreeze": "all",
+        "unfreeze_patience": 1,
+        "n_iterations": 30,
+        "n_train_batches": 2000,
+        "n_test_batches": 1,
+        "size_t_x_u": [1,10,13],
+        "num_width" : tune.grid_search([35,55,75]),
+        "num_depth" : tune.grid_search([5,7]),
+        "in_channels": 11, # number of time inhomogeneoust parameters
+        "num_timepoints": 20, # number of time points of the TI parameters
+        "num_outputs": 6, # the output dimension of the embedding net
+        "out_channels": 4,
+        "kernel_size": 15,
     }
 }
 

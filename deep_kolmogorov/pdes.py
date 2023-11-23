@@ -1019,7 +1019,8 @@ class BSbasketTI(Pde):
         """
         num_timepoints = 20
         ts = torch.linspace(1/num_timepoints, 1, num_timepoints, dtype=batch["s"].dtype, device=batch["s"].device).repeat(batch["s"].shape[0], 1)
-        return batch["sigma_bar"] * torch.exp(-batch["beta"] * (1 - ts))
+        return torch.concat(
+            [batch["sigma_bar"][:,i].reshape(-1,1) * torch.exp(-batch["beta"][:,i].reshape(-1,1) * (1 - ts)) for i in range(batch["beta"].shape[1])], dim=-1)
 
     def solution(self, batch):
         """
@@ -1052,6 +1053,10 @@ class BSbasketTI(Pde):
             return (batch[param] - self.hypercubes["s"].mean) /  self.hypercubes["s"].std
         elif param == 'K':
             return (batch[param] - self.hypercubes["s"].mean * self.hypercubes["kappa"].mean) / (self.hypercubes["kappa"].mean ** 2 * self.hypercubes["s"].std ** 2 + self.hypercubes["s"].mean ** 2 * self.hypercubes["kappa"].std ** 2) ** 0.5
+        elif param == "r":
+            return (batch[param] - self.hypercubes["r0"].mean) /  self.hypercubes["r0"].std
+        elif param == "sigma":
+            return (batch[param] - self.hypercubes["sigma_bar"].mean) /  self.hypercubes["sigma_bar"].std
         else:
             return (batch[param] - self.hypercubes[param].mean) / self.hypercubes[param].std
 
