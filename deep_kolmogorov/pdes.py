@@ -516,7 +516,9 @@ class BSTI(Pde):
         t, T = batch["t"], self.hypercubes["t"].interval[1]
         s2mt = BSTI.get_s2mt(t, T, T, batch["sigma_bar"], batch["beta"])
         rmt = BSTI.get_rmt(t, T, batch["r0"], batch["r1"], batch["r2"])
-        rt, st2 = rmt / (T-t), s2mt / (T-t)
+        rt, st2 = (rmt / (T-t)), s2mt / (T-t)
+        mask_rt, mask_st2 = torch.isnan(rt), torch.isnan(st2)
+        rt, st2 = torch.where(mask_rt, 0, rt), torch.where(mask_st2, 0, st2)
         sigma_sqrtt = torch.sqrt(st2) * torch.sqrt(T-t)
         _d = (
             (

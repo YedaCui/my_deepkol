@@ -189,6 +189,7 @@ class DeepKernelONet(DeepONet):
         config["size_t_x_u"] = [config["size_t_x_u"][0], config["size_t_x_u"][1], self.num_para - self.in_channels + self.num_outputs] # update the size_t_x_u
         super(DeepKernelONet, self).__init__(dim_in, config)
         self.kernel = KernelOperator(config["in_channels"], config["out_channels"], config["kernel_size"], config["num_outputs"])
+        # bin = self.kernel(torch.randn(1,2,20, device=torch.device("cuda"))) # add it when loading checkpoint with the input shape same as the experiment
 
     def forward(self, tensor: Tuple[torch.Tensor]) -> torch.Tensor:
         time_tensor, state_tensor, u_tensor = tensor[:, 0:self.size_t], tensor[:, self.size_t:-self.total_u], tensor[:, -self.total_u:]
