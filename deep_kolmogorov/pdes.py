@@ -1033,9 +1033,9 @@ class BSbasketTI(Pde):
         RHO.as_strided((batch_size, n), (n ** 2, n + 1)).fill_(1)
 
         sig_t = 1/n**2 * torch.sum(BSbasketTI.get_scovmt(batch["t"], self.hypercubes["t"].interval[1], self.hypercubes["t"].interval[1], batch["sigma_bar"], batch["beta"]) * RHO.reshape(RHO.shape[0],-1), dim=-1, keepdim=True) / t
-        #print("complete to calculate the sqrt of sig at ")
-        #print(time.time())
         sig = torch.mean(BSbasketTI.get_s2mt(batch["t"], self.hypercubes["t"].interval[1], self.hypercubes["t"].interval[1], batch["sigma_bar"], batch["beta"]) / t, dim=1, keepdim=True)
+        mask_sig_t, mask_sig = torch.isnan(sig_t), torch.isnan(sig)
+        sig_t, sig = torch.where(mask_sig_t, 0, sig_t), torch.where(mask_sig, 0, sig)
         #print("begin to calculate the sqrt of F at ")
         #print(time.time())
         rmt = BSbasketTI.get_rmt(batch["t"], self.hypercubes["t"].interval[1], batch["r0"], batch["r1"], batch["r2"])

@@ -207,10 +207,10 @@ class DeepKernelONetwithPI(DeepONet):
         self.in_channels = config["in_channels"] # number of time inhomogeneoust parameters
         self.num_timepoints = config["num_timepoints"] # number of time points of the TI parameters
         self.num_outputs = config["num_outputs"] # the output dimension of the embedding net
-        self.total_u = self.num_para + self.num_timepoints * (self.num_para - self.in_channels) # the total dims of parameters 
+        self.total_u = self.num_para - self.in_channels + self.num_timepoints * self.in_channels # the total dims of parameters 
 
-        config["size_t_x_u"] = [config["size_t_x_u"][0], config["pi_layer"][0], self.num_outputs] # update the size_t_x_u
-        super(DeepKernelONetwithPI, self).__init__(dim_in, config)
+        config["size_t_x_u"] = [config["size_t_x_u"][0], config["pi_layer"][0], self.num_para - self.in_channels + self.num_outputs] # update the size_t_x_u
+        super().__init__(dim_in, config)
         self.num_assets = config["num_assets"]
         self.PI_layers = nn.Sequential(*[PermutationInvariantLayer(m) for m in config["pi_layer"]])
         # bin = self.PI_layers(torch.randn(1,10,1, device=torch.device("cuda"))) # add it when loading checkpoint with the input shape same as the experiment
@@ -232,7 +232,7 @@ class DeepKernelONetwithPI(DeepONet):
         u_ti_after_embedding = self.kernel(u_ti)
 
         inputs_for_deeponet = torch.concat([time_tensor, state_after_pi, u_const, u_ti_after_embedding], dim=1)
-        return super(DeepKernelONetwithPI, self).forward(inputs_for_deeponet)
+        return super().forward(inputs_for_deeponet)
 
 
 class LevelNet(nn.Module):
