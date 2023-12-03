@@ -285,11 +285,12 @@ HYPERCONFIGS = {
         "seed": tune.grid_search([0]),
         "checkpoint": True,
         "pde": "BlackScholes",
-        #"net": "MultilevelNet",
+        # "net": "MultilevelNet",
         "net": "DeepONet",
         "norm_layer": "batchnorm",
         "opt": "adamw",
-        "bs": 65536*2,
+        # "bs": 65536,
+        "bs": 120000,
         "lr": 0.01,
         "min_lr": 1e-8,
         "lr_decay": 0.25,
@@ -301,10 +302,12 @@ HYPERCONFIGS = {
         "factor": 5,
         "n_iterations": 15,
         "n_train_batches": 2000,
-        "n_test_batches": 150,
-        "size_t_s_u": [1,1,2],
-        "num_depth" : tune.grid_search([4,5,6]),
-        "num_width" : tune.grid_search([45,55])
+        "n_test_batches": 1,
+        "size_t_x_u": [1,1,2],
+        # "num_depth" : tune.grid_search([4,5,6]),
+        # "num_width" : tune.grid_search([45,55])
+        "num_width" : tune.grid_search([35,55,75]),
+        "num_depth" : tune.grid_search([5,7]),
     },
     "avg_bs_r": {
         "seed": tune.grid_search([0]),
@@ -492,10 +495,10 @@ HYPERCONFIGS = {
         "in_channels": 11, # number of time inhomogeneoust parameters
         "num_timepoints": 20, # number of time points of the TI parameters
         "num_outputs": 6, # the output dimension of the embedding net
-        "out_channels": 4,
+        "out_channels": 6,
         "kernel_size": 15,
         "num_assets" : 10,
-        "pi_layer" :  tune.grid_search([[70,70],[100,100]])
+        "pi_layer" : [100,100]
     }
 }
 

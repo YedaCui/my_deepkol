@@ -118,17 +118,18 @@ class Pde(ABC):
         return sum([cube.dim_flat for cube in self.__hypercubes.values()])
 
     def dataloader(self, batch_size, n_batches, data_type):
-        return DataLoader(
-                Data(self.__hypercubes, batch_size, n_batches, self.get_X, self.get_K, self.get_r, self.get_sigma), batch_size=None
-            )
+        # return DataLoader(
+        #         Data(self.__hypercubes, batch_size, n_batches, self.get_X, self.get_K, self.get_r, self.get_sigma), batch_size=None
+        #     )
+        ### only use for compare with berner's results ####
         # if data_type == 'train': 
         #     return DataLoader(
-        #         Data(self.__hypercubes, batch_size, n_batches, self.get_X, None), batch_size=None
+        #         Data(self.__hypercubes, batch_size, n_batches, self.get_X, None, self.get_r, None), batch_size=None
         #     )
         # else:
-        #     return DataLoader(
-        #         Data(self.__hypercubes, batch_size, n_batches, None, None), batch_size=None
-        #     )
+        return DataLoader(
+            Data(self.__hypercubes, batch_size, n_batches, None, None, self.get_r, None), batch_size=None
+        )
 
     def naf(self, batch, param):
         raise NotImplementedError
@@ -323,6 +324,12 @@ class BlackScholes(Pde):
             -0.5 * batch["t"] * batch["sigma"] ** 2 + batch["sigma"] * dw
         )
         return sde
+    
+    @staticmethod
+    def get_r(batch):
+        return 0
+
+    get_K, get_sigma = None, None
 
     def solution(self, batch):
         """
@@ -339,6 +346,8 @@ class BlackScholes(Pde):
         )
         return batch["K"] * n_dist(_d + sigma_sqrtt) - batch["x"] * n_dist(_d)
 
+    def naf(self, batch, param):
+        return (batch[param] - self.hypercubes[param].mean) / self.hypercubes[param].std
 
 HYPERCUBES["black_scholes_r"] = {
     "t": Hypercube(interval=[0.0, 1.0]),

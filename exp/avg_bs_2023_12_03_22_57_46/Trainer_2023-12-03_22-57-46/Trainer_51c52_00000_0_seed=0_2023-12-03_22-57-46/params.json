@@ -1,0 +1,28 @@
+{
+  "bs": 65536,
+  "checkpoint": true,
+  "factor": 5,
+  "gpus": 1,
+  "levels": 4,
+  "lr": 0.01,
+  "lr_decay": 0.25,
+  "lr_decay_patience": 2,
+  "min_lr": 1e-08,
+  "mode": "avg_bs",
+  "n_iterations": 15,
+  "n_test_batches": 1,
+  "n_train_batches": 2000,
+  "net": "MultilevelNet",
+  "norm_layer": "batchnorm",
+  "opt": "adamw",
+  "pde": "BlackScholes",
+  "seed": 0,
+  "size_t_x_u": [
+    1,
+    1,
+    2
+  ],
+  "unfreeze": "all",
+  "unfreeze_patience": 1,
+  "weight_decay": 0.01
+}
