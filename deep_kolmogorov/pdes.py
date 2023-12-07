@@ -118,18 +118,18 @@ class Pde(ABC):
         return sum([cube.dim_flat for cube in self.__hypercubes.values()])
 
     def dataloader(self, batch_size, n_batches, data_type):
-        # return DataLoader(
-        #         Data(self.__hypercubes, batch_size, n_batches, self.get_X, self.get_K, self.get_r, self.get_sigma), batch_size=None
-        #     )
-        ### only use for compare with berner's results ####
-        # if data_type == 'train': 
-        #     return DataLoader(
-        #         Data(self.__hypercubes, batch_size, n_batches, self.get_X, None, self.get_r, None), batch_size=None
-        #     )
-        # else:
         return DataLoader(
-            Data(self.__hypercubes, batch_size, n_batches, None, None, self.get_r, None), batch_size=None
-        )
+                Data(self.__hypercubes, batch_size, n_batches, self.get_X, self.get_K, self.get_r, self.get_sigma), batch_size=None
+            )
+        # ### only use for compare with berner's results ####
+        # # if data_type == 'train': 
+        # #     return DataLoader(
+        # #         Data(self.__hypercubes, batch_size, n_batches, self.get_X, None, self.get_r, None), batch_size=None
+        # #     )
+        # # else:
+        # return DataLoader(
+        #     Data(self.__hypercubes, batch_size, n_batches, None, None, self.get_r, None), batch_size=None
+        # )
 
     def naf(self, batch, param):
         raise NotImplementedError
