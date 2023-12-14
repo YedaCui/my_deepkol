@@ -187,7 +187,7 @@ class DeepKernelONet(DeepONet):
         self.total_u = self.num_para - self.in_channels + self.num_timepoints * self.in_channels # the total dims of parameters 
 
         config["size_t_x_u"] = [config["size_t_x_u"][0], config["size_t_x_u"][1], self.num_para - self.in_channels + self.num_outputs] # update the size_t_x_u
-        super(DeepKernelONet, self).__init__(dim_in, config)
+        super().__init__(dim_in, config)
         self.kernel = KernelOperator(config["in_channels"], config["out_channels"], config["kernel_size"], config["num_outputs"])
         # bin = self.kernel(torch.randn(1,2,20, device=torch.device("cuda"))) # add it when loading checkpoint with the input shape same as the experiment
 
@@ -198,7 +198,7 @@ class DeepKernelONet(DeepONet):
         u_ti_after_embedding = self.kernel(u_ti)
 
         inputs_for_deeponet = torch.concat([time_tensor, state_tensor, u_const, u_ti_after_embedding], dim=1)
-        return super(DeepKernelONet, self).forward(inputs_for_deeponet)
+        return super().forward(inputs_for_deeponet)
 
 
 class DeepKernelONetwithPI(DeepONet):
