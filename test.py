@@ -1,0 +1,36 @@
+from deep_kolmogorov import modeling, pdes, trainer
+import torch
+
+config = {
+  "bs": 120000,
+  "checkpoint": True,
+  "factor": 6,
+  "gpus": 1,
+  "levels": 4,
+  "lr": 0.01,
+  "lr_decay": 0.25,
+  "lr_decay_patience": 2,
+  "min_lr": 1e-08,
+  "mode": "avg_MJD",
+  "n_iterations": 30,
+  "n_test_batches": 1,
+  "n_train_batches": 2000,
+  "net": "DeepONet",
+  "norm_layer": "layernorm",
+  "num_depth": 5,
+  "num_width": 35,
+  "opt": "adamw",
+  "pde": "MJD",
+  "seed": 0,
+  "size_t_x_u": [
+    1,
+    1,
+    6
+  ],
+  "unfreeze": "all",
+  "unfreeze_patience": 1,
+  "weight_decay": 0.01
+}
+mytrainer = trainer.Trainer(config)
+
+mytrainer._test_loop()
