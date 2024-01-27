@@ -1292,16 +1292,60 @@ class MJDbasket(Pde):
         Fp = x * torch.exp((- (sig_t**2 - sig_p**2) / 2) * tau)
         F = x * torch.exp((r - (sig_t**2 - sig**2) / 2) * tau)
         d_p = (torch.log(F) - torch.log(K) + 0.5 * sig ** 2 * tau) / (sig * torch.sqrt(tau))
-        print(Fp)
-        print(d_p)
-        print(sig_t)
-        print()
-        print(K)
-        print(Fp * n_dist(d_p))
-        print(- K * torch.exp(-r*tau) * n_dist(d_p - sig * torch.sqrt(tau)))
-        print(- K * torch.exp(-r*tau) )
-        print(n_dist(d_p - torch.sqrt(sig * tau)))
+        # print(Fp)
+        # print(d_p)
+        # print(sig_t)
+        # print()
+        # print(K)
+        # print(Fp * n_dist(d_p))
+        # print(- K * torch.exp(-r*tau) * n_dist(d_p - sig * torch.sqrt(tau)))
+        # print(- K * torch.exp(-r*tau) )
+        # print(n_dist(d_p - torch.sqrt(sig * tau)))
         return Fp * n_dist(d_p) - K * torch.exp(-r*tau) * n_dist(d_p - sig * torch.sqrt(tau))
+
+    @staticmethod
+    def BS_call(t, x, K, r, sig):
+        sigma_sqrtt = sig * torch.sqrt(t)
+        _d = (
+            (
+                torch.log(x / K)
+                + r * t +  0.5 * t * sig ** 2
+            )
+            / sigma_sqrtt
+        )
+        return x * n_dist(_d) - K * (torch.exp(-r*t) * n_dist(_d - sigma_sqrtt))
+
+    @staticmethod
+    def MJD_call(t, x, K, r, sig, _lambda, m, delta, threshold=1e-18, max_iter=100):
+        """
+        t: time to maturity
+        x: spot price
+        K: strike price
+        r: risk-free rate
+        sigma: volatility
+        _lambda: jump intensity
+        m: mean of jump size
+        delta: standard deviation of jump size
+        threshold: threshold for the iteration
+        max_iter: maximum iteration number
+        """
+        muj = torch.exp(m + 0.5 * delta ** 2) - 1
+        lambda_h = _lambda * torch.exp(m + 0.5 * delta**2)
+        j, sig_j, r_j = 0, sig, r - _lambda * muj
+        w = torch.exp(-lambda_h*t)
+        res = 0
+        while True:
+            new = MJDbasket.BS_call(t, x, K, r_j, sig_j)
+            if torch.all(w * new / (res+1e-30) < threshold):
+                break
+            if j > max_iter:
+                print("The iteration exceeds the maximum iteration number.")
+                break
+            res = res + w * new
+            j += 1
+            w = w * lambda_h * t / j
+            sig_j, r_j = torch.sqrt(sig**2 + j*delta**2/t), r - _lambda * muj + j * (m + 0.5*delta**2) / t
+        return res
 
     def solution(self, batch):
         """
@@ -1323,26 +1367,30 @@ class MJDbasket(Pde):
             1/n**2 * torch.sum(batch["delta"].unsqueeze(2) * RHO * batch["delta"].unsqueeze(1), (1,2)).reshape(-1,1)
         )
         m_t = torch.mean(batch["m"], dim=1, keepdim=True)
+        sig_t = torch.sqrt(torch.mean(batch["sigma"]**2, dim=1, keepdim=True))
         muj = torch.exp(batch["m"] + 0.5 * batch["delta"] ** 2) - 1
         mu_t = torch.mean(muj, dim=1, keepdim=True)
-        sig_t = torch.sqrt(torch.mean(batch["sigma"]**2, dim=1, keepdim=True))
-        lambda_t = batch["lambda"] * torch.exp(m_t + 0.5 * delta_t**2)
 
         x = torch.exp(torch.mean(torch.log(batch["x"]), dim=1, keepdim=True))
-        j, sig_j, r_j =0, sig_h, batch["r"] - batch["lambda"] * mu_t
-        w = torch.exp(-lambda_t*t)
-        res = 0
-        while True:
-            new = self._u(t, x, r_j, sig_j, sig_h, sig_t, batch["K"])
-            if torch.all(w * new / res < 1e-18):
-                break
-            res = res + w * new
-            print("res is ")
-            print(res)
-            j += 1
-            w = w * lambda_t * t / j
-            sig_j, r_j = torch.sqrt(sig_h**2 + j*delta_t**2/t), batch["r"] - batch["lambda"] * mu_t + j * (m_t + 0.5*delta_t**2) / t
-        return res
+        return self.MJD_call(t, x * torch.exp(0.5 * (sig_h**2 - sig_t**2)*t) * torch.exp(batch["lambda"]*(torch.exp(m_t + 0.5*delta_t**2)-1 - mu_t)*t),
+                              batch["K"], batch["r"], sig_h, batch["lambda"], m_t, delta_t, threshold=1e-18, max_iter=1000)
+        
+
+        # lambda_t = batch["lambda"] * torch.exp(m_t + 0.5 * delta_t**2)
+        # j, sig_j, r_j =0, sig_h, batch["r"] - batch["lambda"] * mu_t
+        # w = torch.exp(-lambda_t*t)
+        # res = 0
+        # while True:
+        #     new = self._u(t, x, r_j, sig_j, sig_h, sig_t, batch["K"])
+        #     if torch.all(w * new / (res + 1e-28) < 1e-18):
+        #         break
+        #     res = res + w * new
+        #     print("res is ")
+        #     print(res)
+        #     j += 1
+        #     w = w * lambda_t * t / j
+        #     sig_j, r_j = torch.sqrt(sig_h**2 + j*delta_t**2/t), batch["r"] - batch["lambda"] * mu_t + j * (m_t + 0.5*delta_t**2) / t
+        # return res
     def naf(self, batch, param):
         if param == "x":
             return (batch[param] - self.hypercubes["s"].mean) /  self.hypercubes["s"].std
