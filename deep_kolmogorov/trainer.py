@@ -521,6 +521,27 @@ HYPERCONFIGS = {
         "num_width" : tune.grid_search([35,55,75, 95, 115, 135, 155, 175, 195, 215]),
         # "num_depth" : 7,
         "num_depth" : tune.grid_search([5,7,9]),
+    },
+    "avg_MJDbasket": {
+        "seed": tune.grid_search([0]),
+        "checkpoint": True,
+        "pde": "MJDbasket",
+        "net": "DeepONet",
+        "opt": "adamw",
+        "bs": 120000,
+        "lr": 0.01,
+        "min_lr": 1e-8,
+        "lr_decay": 0.25,
+        "lr_decay_patience": 2,
+        "weight_decay": 0.01,
+        "unfreeze": "all",
+        "unfreeze_patience": 1,
+        "n_iterations": 30,
+        "n_train_batches": 2000,
+        "n_test_batches": 1,
+        "size_t_x_u": [1,10,35],
+        "num_width" : tune.grid_search([35,55,75, 95, 115, 135, 155, 175, 195, 215]),
+        "num_depth" : tune.grid_search([5,7,9]),
     }
 }
 

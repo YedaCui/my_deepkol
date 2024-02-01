@@ -1169,13 +1169,17 @@ class MJD(Pde):
         # for i in range(20):
         while True:
             new = self.BS_call(r_j, sig_j, t, batch["x"], batch["K"])
+            if j > 100:
+                print("The iteration exceeds the maximum iteration number.")
+                break
             if torch.all(w * new / (res + 1e-28) < 1e-16):
-                # print("Finish the iteration.")
+                print("Finish the iteration.")
                 break
             res = res + w * new
             j += 1
             w = w * lambda_h * t / j
             sig_j, r_j = torch.sqrt(batch["sigma"]**2 + j*batch["delta"]**2/t), batch["r"] - batch["lambda"] * muj + j * (batch["m"] + 0.5*batch["delta"]**2) / t
+        res = torch.where(t == 0, torch.nn.ReLU()(batch["x"] - batch["K"]), res)
         return res
 
             
@@ -1196,9 +1200,9 @@ HYPERCUBES["MJD_basket"] = {
     "r": Hypercube(interval=[0.005, 0.08]),
     "sigma": Hypercube(interval=[0.1, 0.6], dims=(10,)),
     "rho_b": Hypercube(interval=[-0.1, 0.8]),
-    "lambda": Hypercube(interval=[1, 3]),
-    "m": Hypercube(interval=[-0.1, 0.1], dims=(10,)),
-    "delta": Hypercube(interval=[0.1, 0.25], dims=(10,)),
+    "lambda": Hypercube(interval=[10, 20]),
+    "m": Hypercube(interval=[-0.02, 0.02], dims=(10,)),
+    "delta": Hypercube(interval=[0.01, 0.1], dims=(10,)),
     "rho_j": Hypercube(interval=[-0.1, 0.8]),
     "kappa": Hypercube(interval=[0.8, 1.2]),
 }
@@ -1217,6 +1221,7 @@ class MJDbasket(Pde):
         """
         Outputs batched realizations of the SDE.
         """
+        # print("Begin to calculate payoff")
         t = self.hypercubes["t"].interval[1] - batch["t"]
         n = batch["sigma"].shape[-1]
         batch_size = batch["sigma"].shape[0]
@@ -1248,8 +1253,7 @@ class MJDbasket(Pde):
         """
         get the X from S_0
         """
-        #print("begin to calculate the sqrt of cov at ")
-        #print(time.time())
+        # print("Begin to calculate X")
         n = batch["sigma"].shape[-1]
         batch_size = batch["sigma"].shape[0]
         RHO = batch["rho_b"].view(batch_size, 1, 1).expand(batch_size, n, n).clone()
@@ -1267,7 +1271,7 @@ class MJDbasket(Pde):
         RHO.as_strided((batch_size, n), (n ** 2, n + 1)).fill_(1)
         sqrt_cov = torch.linalg.cholesky(RHO)
         jumps = num_j * batch["m"] + torch.sqrt(num_j) * batch["delta"] * torch.matmul(sqrt_cov, 
-                                                torch.randn(batch["x"].shape, dtype=batch["x"].dtype, device=batch["x"].device).unsqueeze(2)
+                                                torch.randn(batch["s"].shape, dtype=batch["s"].dtype, device=batch["s"].device).unsqueeze(2)
         ).squeeze(2)
 
         sde = batch["s"] * torch.exp(
@@ -1292,15 +1296,6 @@ class MJDbasket(Pde):
         Fp = x * torch.exp((- (sig_t**2 - sig_p**2) / 2) * tau)
         F = x * torch.exp((r - (sig_t**2 - sig**2) / 2) * tau)
         d_p = (torch.log(F) - torch.log(K) + 0.5 * sig ** 2 * tau) / (sig * torch.sqrt(tau))
-        # print(Fp)
-        # print(d_p)
-        # print(sig_t)
-        # print()
-        # print(K)
-        # print(Fp * n_dist(d_p))
-        # print(- K * torch.exp(-r*tau) * n_dist(d_p - sig * torch.sqrt(tau)))
-        # print(- K * torch.exp(-r*tau) )
-        # print(n_dist(d_p - torch.sqrt(sig * tau)))
         return Fp * n_dist(d_p) - K * torch.exp(-r*tau) * n_dist(d_p - sig * torch.sqrt(tau))
 
     @staticmethod
@@ -1337,6 +1332,7 @@ class MJDbasket(Pde):
         while True:
             new = MJDbasket.BS_call(t, x, K, r_j, sig_j)
             if torch.all(w * new / (res+1e-30) < threshold):
+                print("The iteration ends with completion of requirements.")
                 break
             if j > max_iter:
                 print("The iteration exceeds the maximum iteration number.")
@@ -1351,7 +1347,7 @@ class MJDbasket(Pde):
         """
         Outputs the exact solution.
         """
-
+        print("Begin to calculate the solution.")
         t = self.hypercubes["t"].interval[1] - batch["t"]
         n = batch["sigma"].shape[-1] # the dimension of S_t
         batch_size = batch["sigma"].shape[0]
@@ -1372,9 +1368,11 @@ class MJDbasket(Pde):
         mu_t = torch.mean(muj, dim=1, keepdim=True)
 
         x = torch.exp(torch.mean(torch.log(batch["x"]), dim=1, keepdim=True))
-        return self.MJD_call(t, x * torch.exp(0.5 * (sig_h**2 - sig_t**2)*t) * torch.exp(batch["lambda"]*(torch.exp(m_t + 0.5*delta_t**2)-1 - mu_t)*t),
-                              batch["K"], batch["r"], sig_h, batch["lambda"], m_t, delta_t, threshold=1e-18, max_iter=1000)
-        
+
+        res = self.MJD_call(t, x * torch.exp(0.5 * (sig_h**2 - sig_t**2)*t) * torch.exp(batch["lambda"]*(torch.exp(m_t + 0.5*delta_t**2)-1 - mu_t)*t),
+                              batch["K"], batch["r"], sig_h, batch["lambda"], m_t, delta_t, threshold=1e-16, max_iter=1000)
+        res = torch.where(t == 0, torch.nn.ReLU()(x - batch["K"]), res)
+        return res
 
         # lambda_t = batch["lambda"] * torch.exp(m_t + 0.5 * delta_t**2)
         # j, sig_j, r_j =0, sig_h, batch["r"] - batch["lambda"] * mu_t
@@ -1391,6 +1389,7 @@ class MJDbasket(Pde):
         #     w = w * lambda_t * t / j
         #     sig_j, r_j = torch.sqrt(sig_h**2 + j*delta_t**2/t), batch["r"] - batch["lambda"] * mu_t + j * (m_t + 0.5*delta_t**2) / t
         # return res
+    
     def naf(self, batch, param):
         if param == "x":
             return (batch[param] - self.hypercubes["s"].mean) /  self.hypercubes["s"].std

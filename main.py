@@ -4,6 +4,6 @@ if __name__ == '__main__':
     parser = get_args()
     args = parser.parse_args()
 
-    args.mode = 'avg_MJD'
+    args.mode = 'avg_MJDbasket'
     args.gpus = 1
     main(vars(args))
