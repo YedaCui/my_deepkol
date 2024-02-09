@@ -577,16 +577,16 @@ def main(config):
             base_dir, "{}_{:%Y_%m_%d_%H_%M_%S}".format(config["mode"], datetime.now())
         )
     analysis = tune.run(
-        Trainer,
-        local_dir=local_dir,
-        scheduler=sched,
-        stop=stopper,
-        resources_per_trial={"gpu": config["gpus"]},
-        num_samples=num_samples,
-        checkpoint_at_end=config["checkpoint"],
-        checkpoint_freq=1,
-        config=config,
-        resume=bool(config.pop("resume_exp")),
+        Trainer, # 要运行的训练函数/类 输入为一个字典config包含超参信息
+        local_dir=local_dir, # 各个hyperpapa下结果保存的路径
+        scheduler=sched, # none in my case
+        stop=stopper, # 如何停止，在我的case下为iteration的次数
+        resources_per_trial={"gpu": config["gpus"]},  # 每次试验分配的资源
+        num_samples=num_samples, 
+        checkpoint_at_end=config["checkpoint"], # 是否保存checkpoints
+        checkpoint_freq=1, # 保存checkpoints频率
+        config=config, # 超参搜索空间，参考HYPERCONFIGS字典中不同case下的设置。
+        resume=bool(config.pop("resume_exp")), # 恢复功能，我没用到。
     )
     ray.shutdown()
     return analysis
