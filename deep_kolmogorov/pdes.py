@@ -85,6 +85,8 @@ class Data(Dataset):
             batch["r"] = self.get_r(batch)
         if self.get_sigma is not None:
             batch["sigma"] = self.get_sigma(batch)
+        if "x" not in batch:
+            batch["x"] = batch["s"].clone()
         return batch
 
 class Pde(ABC):
@@ -113,16 +115,21 @@ class Pde(ABC):
     def dim_flat(self):
         return sum([cube.dim_flat for cube in self.__hypercubes.values()])
 
-    def dataloader(self, batch_size, n_batches, data_type):
-        return DataLoader(
+    def dataloader(self, batch_size, n_batches, data_type, Testset_narrow_x=False):
+        if not Testset_narrow_x:
+            return DataLoader(
+                    Data(self.__hypercubes, batch_size, n_batches, self.get_X, self.get_K, self.get_r, self.get_sigma), batch_size=None
+                )
+        ### Use it when want the testset x be in [9,10] 
+        if data_type == 'train': 
+            return DataLoader(
                 Data(self.__hypercubes, batch_size, n_batches, self.get_X, self.get_K, self.get_r, self.get_sigma), batch_size=None
             )
-        # ### only use for compare with berner's results ####
-        # # if data_type == 'train': 
-        # #     return DataLoader(
-        # #         Data(self.__hypercubes, batch_size, n_batches, self.get_X, None, self.get_r, None), batch_size=None
-        # #     )
-        # # else:
+        else:
+            return DataLoader(
+                Data(self.__hypercubes, batch_size, n_batches, None, self.get_K, self.get_r, self.get_sigma), batch_size=None
+            )
+        ### only use for compare with berner's results ####
         # return DataLoader(
         #     Data(self.__hypercubes, batch_size, n_batches, None, None, self.get_r, None), batch_size=None
         # )
@@ -130,11 +137,15 @@ class Pde(ABC):
     def naf(self, batch, param):
         raise NotImplementedError
 
-    def normalize_and_flatten(self, batch):
+    def normalize_and_flatten(self, batch, report_std=False):
         # batch = [
         #     (batch[param] - self.__hypercubes[param].mean) / self.hypercubes[param].std
         #     for param in self.params
         # ]
+        if report_std:
+            return {
+            param : self.naf(batch, param, report_std) for param in self.params
+        }
         batch = [
             self.naf(batch, param) for param in self.params
         ]
@@ -415,13 +426,47 @@ class BSr(Pde):
         )
         return batch["x"] * n_dist(_d) - batch["K"] * torch.exp(-batch["r"]*t) * n_dist(_d - sigma_sqrtt)
     
-    def naf(self, batch, param):
+    def naf(self, batch, param, report_std=False):
         if param == "x":
-            return (batch[param] - self.hypercubes["s"].mean) /  self.hypercubes["s"].std
+            if report_std:
+                return self.hypercubes["s"].std
+            else:
+                return (batch[param] - self.hypercubes["s"].mean) /  self.hypercubes["s"].std
         elif param == 'K':
-            return (batch[param] - self.hypercubes["s"].mean * self.hypercubes["kappa"].mean) / (self.hypercubes["kappa"].mean ** 2 * self.hypercubes["s"].std ** 2 + self.hypercubes["s"].mean ** 2 * self.hypercubes["kappa"].std ** 2) ** 0.5
+            if report_std:
+                return (self.hypercubes["kappa"].mean ** 2 * self.hypercubes["s"].std ** 2 + self.hypercubes["s"].mean ** 2 * self.hypercubes["kappa"].std ** 2) ** 0.5
+            else:
+                return (batch[param] - self.hypercubes["s"].mean * self.hypercubes["kappa"].mean) / (self.hypercubes["kappa"].mean ** 2 * self.hypercubes["s"].std ** 2 + self.hypercubes["s"].mean ** 2 * self.hypercubes["kappa"].std ** 2) ** 0.5
         else:
-            return (batch[param] - self.hypercubes[param].mean) / self.hypercubes[param].std
+            if report_std:
+                return self.hypercubes[param].std
+            else:
+                return (batch[param] - self.hypercubes[param].mean) / self.hypercubes[param].std
+        
+    
+
+    def get_greeks(self, batch, greeks=["delta"]):
+        """
+        Outputs the delta of the given samples with a dict.
+        """
+        t = self.hypercubes["t"].interval[1] - batch["t"]
+        S = batch["x"]
+        K = batch["K"]
+        r = batch["r"]
+        sigma = batch["sigma"]
+        d1 = (torch.log(S / K) + (r + 0.5 * sigma**2) * t) / (sigma * torch.sqrt(t))
+
+        def _get_greek(greek):
+            if greek == "delta":
+                delta = n_dist(d1)
+                return delta
+            if greek == "vega":
+                vega = S * n_density(d1) * torch.sqrt(t)
+                return vega
+        
+        return {
+            _v : _get_greek(_v) for _v in greeks
+        }
 
 
 HYPERCUBES["black_scholes_TI"] = {
@@ -894,12 +939,6 @@ class BSbasket(Pde):
                 torch.log(F / batch["K"])
                  +  0.5 * t * sig_t
             ) / torch.sqrt(sig_t * t)
-        print(torch.exp(-batch["r"]*t) * F * n_dist(d_p))
-        print(torch.exp(-batch["r"]*t) * ( - batch["K"] * n_dist(d_p - torch.sqrt(sig_t * t))))
-        print(torch.exp(-batch["r"]*t) * F)
-        print(d_p)
-        print(torch.sqrt(sig))
-        print(torch.sqrt(sig_t))
         return torch.exp(-batch["r"]*t) * (F * n_dist(d_p) - batch["K"] * n_dist(d_p - torch.sqrt(sig_t * t)))
     
     def naf(self, batch, param):

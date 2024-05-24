@@ -137,6 +137,21 @@ class Trainer(tune.Trainable):
                 self.test_metr.store(output)
         return self.test_metr.finalize()
     
+    def _test_greeks_loop(self, greeks=["delta"], method="autodiff", d=0.001):
+        # test greeks
+        self.test_greeks_metr = {_g:Metrics() for _g in greeks}
+        self.model.eval()
+        for batch in self.test_loader:
+            if isinstance(self.model, torch.nn.DataParallel):
+                output = self.model.module.test_greeks(batch, greeks=greeks, method=method, d=d)
+            else:
+                output = self.model.test_greeks(batch, greeks=greeks, method=method, d=d)
+            for _g in greeks:
+                self.test_greeks_metr[_g].store({"pde": output["pde"][_g], "net": output["net"][_g]})
+        return {
+            _g: self.test_greeks_metr[_g].finalize() for _g in greeks
+        }
+    
     def _val_loop(self):
         # test
         self.model.eval()

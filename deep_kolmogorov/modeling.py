@@ -348,6 +348,60 @@ class KolmogorovNet(torch.nn.Module):
             y_pred = torch.exp(- batch["r"] * batch["t"]) * self.net.forward(tensor)
         return {"pde": y, "net": y_pred}
 
+    def test_greeks(self, batch, greeks=["delta"], method="autodiff", d=0.001):
+        device = next(self.net.parameters()).device  # 获取模型所在的设备
+        batch = {k: v.to(device) for k, v in batch.items()}  # 将 batch 中的所有数据移动到相同设备
+        y = self.pde.get_greeks(batch, greeks)
+        y_pred = self.net_greeks(batch, greeks, method, d=d)
+        return {"pde": y, "net": y_pred}
+    
+    def net_greeks(self, batch, greeks, method, d=0.001):
+        dict_greek_param = {"delta": "x", "vega": "sigma"}
+        # if method == "autodiff":
+        #     dict_param_len = {_v: batch[_v].shape[-1] for _v in self.pde.params}
+
+        #     tensor = self.pde.normalize_and_flatten(batch)
+        #     tensor.requires_grad = True
+        #     stds = self.pde.normalize_and_flatten(batch,report_std=True)
+        #     y = self.net(tensor)
+        #     y.backward(torch.ones_like(y))
+        #     tensor_grad = tensor.grad
+        #     dict_param_ind = {
+        #         _g:  sum([dict_param_len[_v] for _v in self.pde.params if _v != dict_greek_param[_g]]) for _g in greeks
+        #     }
+        #     return {
+        #         _g: tensor_grad[:,[dict_param_ind[_g]]] / stds[dict_greek_param[_g]] for _g in greeks
+        #     }
+        if method == "autodiff":
+            res = {}
+            for _g in greeks:
+                _param = dict_greek_param[_g]
+                original_param = batch[_param].clone()
+                batch[_param] = batch[_param].clone().detach().requires_grad_(True)
+                batch_flat = self.pde.normalize_and_flatten(batch)
+                self.net.eval()
+                pred = self.net(batch_flat)
+                pred.backward(torch.ones_like(batch[_param]))
+                res[_g] = batch[_param].grad
+                batch[_param] = original_param
+            return res
+        if method == "finidiff":
+            tensor = self.pde.normalize_and_flatten(batch)
+            res = {}
+            for _g in greeks:
+                _param = dict_greek_param[_g]
+                original_param = batch[_param].clone()
+                batch[_param] = original_param + d
+                tensor = self.pde.normalize_and_flatten(batch)
+                y_p = self.net.forward(tensor)
+                batch[_param] = original_param - d
+                tensor = self.pde.normalize_and_flatten(batch)
+                y_m = self.net.forward(tensor)
+                res[_g] = (y_p - y_m) /2/d
+            return res
+            
+
+
 
 class Metrics:
     """
