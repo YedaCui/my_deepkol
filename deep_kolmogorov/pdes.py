@@ -50,6 +50,7 @@ class Hypercube:
         return reduce(mul, self.__dims)
 
     def sample(self, batch_size):
+        return torch.DoubleTensor(batch_size, *self.__dims).uniform_(*self.__interval)
         return torch.FloatTensor(batch_size, *self.__dims).uniform_(*self.__interval)
 
     def __repr__(self):
@@ -176,7 +177,7 @@ class Pde(ABC):
             yield from subclass.get_subclasses()
             yield subclass
 
-    def get_greeks(self, batch, greeks=["delta"], d=0.00001):
+    def get_greeks(self, batch, greeks=["delta"], d=1e-6):
         """
         Outputs the delta of the given samples with a dict by finit difference
         """
@@ -186,6 +187,7 @@ class Pde(ABC):
             _param = dict_greek_param[_g]
             original_param = batch[_param].clone()
             res[_g] = original_param.clone()
+            # calculaate by central difference
             for _i in range(original_param.shape[-1]):
                 batch[_param] = original_param.clone()
                 batch[_param][:,_i] = original_param.clone()[:,_i]*(1 + d)
@@ -193,6 +195,19 @@ class Pde(ABC):
                 batch[_param][:,_i] = original_param.clone()[:,_i]*(1 - d)
                 y_m = self.solution(batch)
                 res[_g][:,_i] = (y_p - y_m).flatten()/2/(original_param.clone()[:,_i]*d)
+            
+            # calculate use five grid point central difference methods
+            # for _i in range(original_param.shape[-1]):
+            #     batch[_param] = original_param.clone()
+            #     batch[_param][:,_i] = original_param.clone()[:,_i]*(1 + d)
+            #     y_p = self.solution(batch)
+            #     batch[_param][:,_i] = original_param.clone()[:,_i]*(1 + 2*d)
+            #     y_p2 = self.solution(batch)
+            #     batch[_param][:,_i] = original_param.clone()[:,_i]*(1 - d)
+            #     y_m = self.solution(batch)
+            #     batch[_param][:,_i] = original_param.clone()[:,_i]*(1 - 2*d)
+            #     y_m2 = self.solution(batch)
+            #     res[_g][:,_i] = (-y_p2 + 8*y_p - 8*y_m + y_m2).flatten()/(original_param.clone()[:,_i]*12*d)
         return res
 
 
@@ -949,7 +964,7 @@ class BSbasket(Pde):
             ) / torch.sqrt(sig_t * t)
         return torch.exp(-batch["r"]*t) * (F * n_dist(d_p) - batch["K"] * n_dist(d_p - torch.sqrt(sig_t * t)))
     
-    def naf(self, batch, param):
+    def naf(self, batch, param, No_normalization_and_flatten=False):
         if param == "x":
             return (batch[param] - self.hypercubes["s"].mean) /  self.hypercubes["s"].std
         elif param == 'K':

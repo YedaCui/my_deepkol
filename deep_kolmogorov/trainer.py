@@ -77,7 +77,19 @@ class Trainer(tune.Trainable):
         self.test_loader = self.pde.dataloader(config["bs"], config["n_test_batches"], 'test')
         self.val_loader = self.pde.dataloader(config["bs"], config["n_test_batches"], 'val')
         # stats
-        first_scores_test = self._test_loop()
+        # first_scores_test = self._test_loop()
+        try:
+            first_scores_test = self._test_loop()
+        except RuntimeError as e:
+            if "expected scalar type Float but found Double" in str(e):
+                print("Caught type mismatch error: converting model to float64")
+                self.model.to(torch.float64)
+                # Optionally, you may want to re-run the test loop after conversion
+                first_scores_test = self._test_loop()
+            else:
+                # Raise the error again if it's not the specific type mismatch error
+                raise e
+
         first_scores_val = self._val_loop()
         self.initial_stats = {
             "params": self.num_net_params,

@@ -399,13 +399,26 @@ class KolmogorovNet(torch.nn.Module):
             for _g in greeks:
                 _param = dict_greek_param[_g]
                 original_param = batch[_param].clone()
-                batch[_param] = batch[_param].clone().detach().requires_grad_(True)
-                batch_flat = self.pde.normalize_and_flatten(batch)
-                self.net.eval()
-                pred = self.net(batch_flat)
-                pred.backward(torch.ones_like(batch[_param]))
-                res[_g] = batch[_param].grad
-                batch[_param] = original_param
+                # batch[_param] = batch[_param].clone().detach().requires_grad_(True)
+                # batch_flat = self.pde.normalize_and_flatten(batch)
+                # self.net.eval()
+                # pred = self.net(batch_flat)
+                # pred.backward(torch.ones_like(batch[_param]))
+                # res[_g] = batch[_param].grad
+                # batch[_param] = original_param
+
+                res[_g] = original_param.clone()
+                for _i in range(original_param.shape[-1]):
+                    batch[_param] = original_param.clone()
+                    param_needs_g = original_param.clone().detach()[:,[_i]].requires_grad_(True)
+                    batch[_param] = torch.concat([original_param.clone().detach()[:,:_i], 
+                                                        param_needs_g,
+                                                        original_param.clone().detach()[:,(_i+1):]], dim=1)
+                    batch_flat = self.pde.normalize_and_flatten(batch)
+                    self.net.eval()
+                    pred = self.net(batch_flat)
+                    pred.backward(torch.ones_like(param_needs_g))
+                    res[_g][:,[_i]] = param_needs_g.grad
             return res
         if method == "finidiff":
             res = {}
@@ -415,14 +428,13 @@ class KolmogorovNet(torch.nn.Module):
                 res[_g] = original_param.clone()
                 for _i in range(original_param.shape[-1]):
                     batch[_param] = original_param.clone()
-                    batch[_param][:,_i] = original_param.clone()[:,_i]*(1 + d)
-                    tensor = self.pde.normalize_and_flatten(batch)
-                    y_p = self.net.forward(tensor)
-                    batch[_param][:,_i] = original_param.clone()[:,_i]*(1 - d)
-                    tensor = self.pde.normalize_and_flatten(batch)
-                    y_m = self.net.forward(tensor)
-                    print(y_m.shape)
-                    print(original_param.clone()[:,[_i]].shape)
+                    with torch.no_grad():
+                        batch[_param][:,_i] = original_param.clone()[:,_i]*(1 + d)
+                        tensor = self.pde.normalize_and_flatten(batch)
+                        y_p = self.net.forward(tensor)
+                        batch[_param][:,_i] = original_param.clone()[:,_i]*(1 - d)
+                        tensor = self.pde.normalize_and_flatten(batch)
+                        y_m = self.net.forward(tensor)
                     res[_g][:,_i] = (y_p - y_m).flatten()/2/(original_param.clone()[:,_i]*d)
             return res
             
