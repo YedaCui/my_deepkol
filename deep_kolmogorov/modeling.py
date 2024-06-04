@@ -362,7 +362,6 @@ class KolmogorovNet(torch.nn.Module):
                     y = torch.exp(- batch["r"] * batch["t"]) * self.pde.solution(batch)
             if hasattr(self.net, "No_normalization_and_flatten"):
                 tensor = self.pde.normalize_and_flatten(batch, No_normalization_and_flatten = True)
-                tensor = torch.concat([tensor,20 - tensor],dim=1)
             else:
                 tensor = self.pde.normalize_and_flatten(batch, No_normalization_and_flatten = False)
         if hasattr(self.pde, "get_rmt"):
