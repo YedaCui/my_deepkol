@@ -137,17 +137,13 @@ class Pde(ABC):
     def naf(self, batch, param):
         raise NotImplementedError
 
-    def normalize_and_flatten(self, batch, report_std=False):
+    def normalize_and_flatten(self, batch, No_normalization_and_flatten=False):
         # batch = [
         #     (batch[param] - self.__hypercubes[param].mean) / self.hypercubes[param].std
         #     for param in self.params
         # ]
-        if report_std:
-            return {
-            param : self.naf(batch, param, report_std) for param in self.params
-        }
         batch = [
-            self.naf(batch, param) for param in self.params
+            self.naf(batch, param, No_normalization_and_flatten) for param in self.params
         ]
         return torch.cat([tensor.flatten(start_dim=1) for tensor in batch], dim=1)
 
@@ -426,22 +422,15 @@ class BSr(Pde):
         )
         return batch["x"] * n_dist(_d) - batch["K"] * torch.exp(-batch["r"]*t) * n_dist(_d - sigma_sqrtt)
     
-    def naf(self, batch, param, report_std=False):
+    def naf(self, batch, param, No_normalization_and_flatten=False):
+        if No_normalization_and_flatten:
+            return batch[param]
         if param == "x":
-            if report_std:
-                return self.hypercubes["s"].std
-            else:
-                return (batch[param] - self.hypercubes["s"].mean) /  self.hypercubes["s"].std
+            return (batch[param] - self.hypercubes["s"].mean) /  self.hypercubes["s"].std
         elif param == 'K':
-            if report_std:
-                return (self.hypercubes["kappa"].mean ** 2 * self.hypercubes["s"].std ** 2 + self.hypercubes["s"].mean ** 2 * self.hypercubes["kappa"].std ** 2) ** 0.5
-            else:
-                return (batch[param] - self.hypercubes["s"].mean * self.hypercubes["kappa"].mean) / (self.hypercubes["kappa"].mean ** 2 * self.hypercubes["s"].std ** 2 + self.hypercubes["s"].mean ** 2 * self.hypercubes["kappa"].std ** 2) ** 0.5
+            return (batch[param] - self.hypercubes["s"].mean * self.hypercubes["kappa"].mean) / (self.hypercubes["kappa"].mean ** 2 * self.hypercubes["s"].std ** 2 + self.hypercubes["s"].mean ** 2 * self.hypercubes["kappa"].std ** 2) ** 0.5
         else:
-            if report_std:
-                return self.hypercubes[param].std
-            else:
-                return (batch[param] - self.hypercubes[param].mean) / self.hypercubes[param].std
+            return (batch[param] - self.hypercubes[param].mean) / self.hypercubes[param].std
         
     
 
