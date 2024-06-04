@@ -408,7 +408,6 @@ class KolmogorovNet(torch.nn.Module):
                 batch[_param] = original_param
             return res
         if method == "finidiff":
-            tensor = self.pde.normalize_and_flatten(batch)
             res = {}
             for _g in greeks:
                 _param = dict_greek_param[_g]

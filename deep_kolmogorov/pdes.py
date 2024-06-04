@@ -176,6 +176,25 @@ class Pde(ABC):
             yield from subclass.get_subclasses()
             yield subclass
 
+    def get_greeks(self, batch, greeks=["delta"], d=0.00001):
+        """
+        Outputs the delta of the given samples with a dict by finit difference
+        """
+        dict_greek_param = {"delta": "x", "vega": "sigma", "c-delta": "rho"}
+        res = {}
+        for _g in greeks:
+            _param = dict_greek_param[_g]
+            original_param = batch[_param].clone()
+            res[_g] = original_param.clone()
+            for _i in range(original_param.shape[-1]):
+                batch[_param] = original_param.clone()
+                batch[_param][:,_i] = original_param.clone()[:,_i]*(1 + d)
+                y_p = self.solution(batch)
+                batch[_param][:,_i] = original_param.clone()[:,_i]*(1 - d)
+                y_m = self.solution(batch)
+                res[_g][:,_i] = (y_p - y_m).flatten()/2/(original_param.clone()[:,_i]*d)
+        return res
+
 
 HYPERCUBES = {
     f"basket_{d_basket}d": {
