@@ -378,7 +378,7 @@ class KolmogorovNet(torch.nn.Module):
         return {"pde": y, "net": y_pred}
     
     def net_greeks(self, batch, greeks, method, d=0.001):
-        dict_greek_param = {"delta": "x", "vega": "sigma"}
+        dict_greek_param = {"delta": "x", "vega": "sigma", "c-delta": "rho"}
         # if method == "autodiff":
         #     dict_param_len = {_v: batch[_v].shape[-1] for _v in self.pde.params}
 
@@ -413,13 +413,18 @@ class KolmogorovNet(torch.nn.Module):
             for _g in greeks:
                 _param = dict_greek_param[_g]
                 original_param = batch[_param].clone()
-                batch[_param] = original_param + d
-                tensor = self.pde.normalize_and_flatten(batch)
-                y_p = self.net.forward(tensor)
-                batch[_param] = original_param - d
-                tensor = self.pde.normalize_and_flatten(batch)
-                y_m = self.net.forward(tensor)
-                res[_g] = (y_p - y_m) /2/d
+                res[_g] = original_param.clone()
+                for _i in range(original_param.shape[-1]):
+                    batch[_param] = original_param.clone()
+                    batch[_param][:,_i] = original_param.clone()[:,_i]*(1 + d)
+                    tensor = self.pde.normalize_and_flatten(batch)
+                    y_p = self.net.forward(tensor)
+                    batch[_param][:,_i] = original_param.clone()[:,_i]*(1 - d)
+                    tensor = self.pde.normalize_and_flatten(batch)
+                    y_m = self.net.forward(tensor)
+                    print(y_m.shape)
+                    print(original_param.clone()[:,[_i]].shape)
+                    res[_g][:,_i] = (y_p - y_m).flatten()/2/(original_param.clone()[:,_i]*d)
             return res
             
 
