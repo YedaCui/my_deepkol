@@ -461,6 +461,8 @@ class Metrics:
         abs_error = (output["pde"] - output["net"]).abs()
         magnitude = output["pde"].abs() + 1
         rel_error = abs_error / magnitude
+        # rel_error = (abs_error / magnitude).mean(dim=1, keepdim=True) # component wisely relative error
+        rel_error = abs_error.sum(dim=1, keepdim=True) / ( output["pde"].abs().sum(dim=1, keepdim=True) + 1 ) #  relative error
         loss = {
             "mse": (abs_error ** 2).mean(),
             "L2^2": (rel_error ** 2).mean(),
