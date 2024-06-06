@@ -428,14 +428,26 @@ class KolmogorovNet(torch.nn.Module):
                 res[_g] = original_param.clone()
                 for _i in range(original_param.shape[-1]):
                     batch[_param] = original_param.clone()
+                    # _d = original_param.clone()[:,_i]*d # relative step size
+                    _d = d # constant step size
                     with torch.no_grad():
-                        batch[_param][:,_i] = original_param.clone()[:,_i]*(1 + d)
+                        if _param == "rho":
+                            batch[_param][:,_i] = torch.min(original_param.clone()[:,_i] + _d, 0.8 * torch.ones(batch[_param][:,_i].shape, device=batch[_param].device)) # add upper bound for the \rho
+                        else:
+                            batch[_param][:,_i] = original_param.clone()[:,_i] + _d
+                        xp = batch[_param][:,_i].clone()
                         tensor = self.pde.normalize_and_flatten(batch)
                         y_p = self.net.forward(tensor)
-                        batch[_param][:,_i] = original_param.clone()[:,_i]*(1 - d)
+
+                        if _param == "rho":
+                            batch[_param][:,_i] = torch.max(original_param.clone()[:,_i] - _d, -0.1 * torch.ones(batch[_param][:,_i].shape, device=batch[_param].device)) # add lower bound for the \rho
+                        else:
+                            batch[_param][:,_i] = original_param.clone()[:,_i] - _d
+                        xm = batch[_param][:,_i].clone()
                         tensor = self.pde.normalize_and_flatten(batch)
                         y_m = self.net.forward(tensor)
-                    res[_g][:,_i] = (y_p - y_m).flatten()/2/(original_param.clone()[:,_i]*d)
+                    res[_g][:,_i] = (y_p - y_m).flatten()/(xp-xm)
+                batch[_param] = original_param
             return res
             
 
@@ -462,7 +474,8 @@ class Metrics:
         magnitude = output["pde"].abs() + 1
         rel_error = abs_error / magnitude
         # rel_error = (abs_error / magnitude).mean(dim=1, keepdim=True) # component wisely relative error
-        # rel_error = abs_error.sum(dim=1, keepdim=True) / ( output["pde"].abs().sum(dim=1, keepdim=True) + 1 ) #  relative error
+        # rel_error = abs_error.sum(dim=1, keepdim=True) / ( output["pde"].abs().sum(dim=1, keepdim=True) + 1 ) # L1 relative error
+        # rel_error = torch.sqrt((abs_error**2).sum(dim=1, keepdim=True)) / ( torch.sqrt((output["pde"]**2).sum(dim=1, keepdim=True)) + 1 ) # L2 relative error
         loss = {
             "mse": (abs_error ** 2).mean(),
             "L2^2": (rel_error ** 2).mean(),
