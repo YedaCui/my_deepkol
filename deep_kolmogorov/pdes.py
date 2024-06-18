@@ -390,7 +390,6 @@ HYPERCUBES["black_scholes_r"] = {
     "t": Hypercube(interval=[0.0, 1.0]),
     "s": Hypercube(interval=[9.0, 10.0]),
     "r": Hypercube(interval=[0.005, 0.08]),
-    # "r": Hypercube(interval=[0, 1e-8]),
     "sigma": Hypercube(interval=[0.1, 0.6]),
     "kappa": Hypercube(interval=[0.8, 1.2]),
 }
@@ -463,6 +462,7 @@ class BSr(Pde):
             return (batch[param] - self.hypercubes["s"].mean) /  self.hypercubes["s"].std
         elif param == 'K':
             return (batch[param] - self.hypercubes["s"].mean * self.hypercubes["kappa"].mean) / (self.hypercubes["kappa"].mean ** 2 * self.hypercubes["s"].std ** 2 + self.hypercubes["s"].mean ** 2 * self.hypercubes["kappa"].std ** 2) ** 0.5
+            # return (batch[param] - self.hypercubes["s"].mean * 1) / (1 ** 2 * self.hypercubes["s"].std ** 2 + self.hypercubes["s"].mean ** 2 * (0.4 / math.sqrt(12)) ** 2) ** 0.5
         else:
             return (batch[param] - self.hypercubes[param].mean) / self.hypercubes[param].std
         
