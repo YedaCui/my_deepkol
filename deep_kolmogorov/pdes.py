@@ -434,7 +434,7 @@ class BSr(Pde):
     @staticmethod
     def get_K(batch):
         """
-        Get the K from kappa and S_0
+        Get the strike K from kappa and S_0, kappa means the moneyness, i.e., K/S_0.
         """
         return batch["kappa"] * batch["s"]
     
@@ -456,6 +456,7 @@ class BSr(Pde):
         return batch["x"] * n_dist(_d) - batch["K"] * torch.exp(-batch["r"]*t) * n_dist(_d - sigma_sqrtt)
     
     def naf(self, batch, param, No_normalization_and_flatten=False):
+        # normalization for the input of NN.
         if No_normalization_and_flatten:
             return batch[param]
         if param == "x":

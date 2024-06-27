@@ -2,7 +2,7 @@ import os
 import random
 import torch
 import ray
-from ray import tune
+from ray import tune # for parallelly tunning the hyperparameters.
 from datetime import datetime
 from argparse import ArgumentParser
 from .modeling import Metrics, KolmogorovNet, NETS, NORMLAYERS
@@ -189,6 +189,8 @@ class Trainer(tune.Trainable):
         self.net.load_state_dict(torch.load(checkpoint_path, map_location=device))
 
 
+
+# never used
 def get_args():
     parser = ArgumentParser(description="DL Kolmogorov")
     parser.add_argument("--gpus", type=int, default=1, help="number of gpus per trial")
@@ -293,6 +295,7 @@ def get_args():
 
 
 def stopper_factory(metrics, thresholds, modes):
+    # when to stop the traning process.
     def stopper(trial, result):
         for metric, threshold, mode in zip(metrics, thresholds, modes):
             value = result
@@ -589,6 +592,27 @@ HYPERCONFIGS = {
         "n_test_batches": 1,
         "input_dim": 10,
         "hidden_dim" : tune.grid_search([50,100,300]),
+    },
+    "demo_0": {
+        "seed": tune.grid_search([0]),
+        "checkpoint": True, # whether to save net parameters.
+        "pde": "BSr", # underlying model
+        "net": "DeepONet", # which neural network
+        "opt": "adamw", # optimizer type
+        "bs": 120000, # batch size 
+        "lr": 0.01, # initial learning rate
+        "min_lr": 1e-8, # minimal learning rate 
+        "lr_decay": 0.25, # decay parameter of learning rate
+        "lr_decay_patience": 2, # decay parameter of learning rate
+        "weight_decay": 0.01, # decay parameter of learning rate
+        "unfreeze": "all", # decay parameter of learning rate
+        "unfreeze_patience": 1, # decay parameter of learning rate
+        "n_iterations": 30, # Num of iterations
+        "n_train_batches": 2000,  # Num of traing batches
+        "n_test_batches": 1, # Num of testing batch
+        "size_t_x_u": [1,1,3], # input dim for network
+        "num_width" : tune.grid_search([35,55,75]), # width of NN and use ray.tune.grid_search to tune the hyperparameters.
+        "num_depth" : tune.grid_search([5,7]), # depths of NN and use ray.tune.grid_search to tune the hyperparameters.
     },
 }
 

@@ -86,6 +86,7 @@ class DenseNet(nn.Module):
         return x
 
 
+# Suggest to study this network first.
 class DeepONet(BaseNet):
     """
     The deepOnet, The arguments are hidden layers of brunch and trunk net
